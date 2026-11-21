@@ -98,7 +98,8 @@ export function createRoutes({ config, hook, resolver, ctx }) {
       config.dsh = nextCfg.dsh
       config.bots = nextCfg.bots
       hook?.refresh?.()
-      return sendJson(res, 200, { ok: true })
+      const hinted = applyIdentityHint(ctx, config?.dsh?.defaultPersona || '')
+      return sendJson(res, 200, { ok: true, memoryHinted: hinted })
     }
 
     if (path === `${PREFIX}/select` && req.method === 'POST') {

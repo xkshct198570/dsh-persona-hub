@@ -80,4 +80,7 @@ test('POST /config：保存多主体配置', async () => {
   })
   assert.equal(res.status, 200)
   assert.equal(saved.at(-1).bots['10001'].private.bindings['20002'], 'yiyi')
+  const body = await res.json()
+  assert.equal(body.memoryHinted, true)
+  assert.deepEqual(hinted.at(-1), { roleId: '', workspace: 'web' })
 })
