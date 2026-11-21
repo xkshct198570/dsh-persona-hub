@@ -12,6 +12,7 @@
  */
 import { isLoopback, readJson, sendJson } from './http-kit.js'
 import { listPersonas, readPersona, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './persona-store.js'
+import { importPersona, deletePersona, isUserPersona, findPersonaUsage } from './persona-admin.js'
 import { writeConfigMirror } from './config-mirror.js'
 import { identityForPersona } from './role-map.js'
 import { bool, value } from './config-values.js'
@@ -64,9 +65,37 @@ export function createRoutes({ config, hook, resolver, ctx }) {
     if (path === `${PREFIX}/personas` && req.method === 'GET') {
       return sendJson(res, 200, {
         ok: true,
-        items: listPersonas(config),
+        items: listPersonas(config).map((it) => ({ ...it, deletable: isUserPersona(config, it.key) })),
         dsh: { enabled: config?.dsh?.enabled !== false, defaultPersona: config?.dsh?.defaultPersona || '' },
       })
+    }
+
+    // 导入：上传纯文本（浏览器 FileReader 读成 string 后 JSON 提交）
+    if (path === `${PREFIX}/personas/import` && req.method === 'POST') {
+      const body = await readJson(req, 4 * 1024 * 1024)
+      if (!body.ok) return sendJson(res, body.status, { ok: false, error: body.error })
+      const result = importPersona(config, body.value || {})
+      if (!result.ok) {
+        const status = result.error === 'invalid_key' || result.error === 'empty_text' ? 400
+          : result.error === 'text_too_large' ? 413 : 409
+        return sendJson(res, status, result)
+      }
+      hook?.refresh?.()
+      return sendJson(res, 200, { ok: true, ...result })
+    }
+
+    // 删除：只删用户副本；被 DSH/bots 引用时返回 409 + usage，force=1 才强删
+    if (path.startsWith(`${PREFIX}/personas/`) && req.method === 'DELETE') {
+      const key = decodeURIComponent(path.slice(`${PREFIX}/personas/`.length))
+      const force = url.searchParams.get('force') === '1'
+      const result = deletePersona(config, key, { force, config })
+      if (!result.ok) {
+        const status = result.error === 'persona_in_use' ? 409
+          : result.error === 'persona_shipped_immutable' ? 409 : 404
+        return sendJson(res, status, result)
+      }
+      hook?.refresh?.()
+      return sendJson(res, 200, { ok: true, key: result.key })
     }
 
     if (path === `${PREFIX}/persona` && req.method === 'GET') {

@@ -68,6 +68,26 @@ test('select：切到 aluna、保存配置并给记忆包发提示', async () =>
   assert.equal(saved.at(-1).dsh.defaultPersona, 'aluna')
 })
 
+test('导入人设：写用户资产并出现在列表', async () => {
+  const res = await fetch(base + '/persona-hub/api/personas/import', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ key: 'customone', name: '自定义', text: '你是自定义角色。' }) })
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.key, 'customone')
+  const list = await (await fetch(base + '/persona-hub/api/personas')).json()
+  const item = list.items.find((x) => x.key === 'customone')
+  assert.equal(item.deletable, true)
+  assert.equal(item.origin, 'user')
+})
+
+test('删除人设：出厂不可删；用户副本可删', async () => {
+  const shipped = await fetch(base + '/persona-hub/api/personas/bigfish', { method: 'DELETE' })
+  assert.equal(shipped.status, 409)
+  assert.equal((await shipped.json()).error, 'persona_shipped_immutable')
+  const ok = await fetch(base + '/persona-hub/api/personas/customone', { method: 'DELETE' })
+  assert.equal(ok.status, 200)
+})
+
 test('POST /config：保存多主体配置', async () => {
   const next = {
     dsh: { enabled: true, defaultPersona: 'bigfish' },

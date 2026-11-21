@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0 — 2026-11-22
+
+- 面板「导入人设/删除人设」：UTF-8 纯文本导入、meta 名称/头像、出厂只读、引用检查与 force 删除；CLI 同步同一实现。
+
 ## 0.4.0 — 2026-11-22
 
 - 极简手术：C 原子写 `$DSH_HOME/persona-hub/config.json` 供 Python 直读；key 收紧为 `[a-z][a-z0-9_-]{0,31}`；删除跨进程 HTTP 叙事。

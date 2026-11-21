@@ -39,6 +39,14 @@ personas/meta.json             # {"bigfish":{"name":"大肥鱼","avatar":""}}
 
 用户目录 `$DSH_HOME/persona-hub/prompts/` + `meta.json` 同名覆盖出厂资产；`fs.watch` 热重载（150ms 防抖）。
 
+## 导入/删除人设（面板）
+
+- 面板「角色资产」→「导入人设」：选择 **UTF-8 纯文本** `.txt`/`.md`（无 front matter、无 YAML），填写 key（`^[a-z][a-z0-9_-]{0,31}$`）/显示名/头像（可选）；同名或出厂同名需勾「覆盖」。
+- 资产列表：出厂角色标「出厂（只读）」不可删；用户导入的显示「删除」。
+- 删除被 DSH/bots 引用的人设时，会列出引用位置并二次确认（`force=1` 才强删）；出厂角色不可删，只能覆盖成用户副本。
+- CLI 同能力：`node scripts/import-persona.mjs <src.txt> [key] [name]`。
+- 文件落点：`$DSH_HOME/persona-hub/prompts/<key>.txt`，元数据 `$DSH_HOME/persona-hub/meta.json`；写盘 tmp→fsync→rename。
+
 ## Service / 跨进程契约
 
 - 宿主内：`ctx.get('personaHub').resolvePersona({ source, bot_id, chat_type, target_id })` → `{personaKey,name,avatar,text} | null`；`explainResolve` 带因返回。

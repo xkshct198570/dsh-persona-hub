@@ -1,22 +1,17 @@
 #!/usr/bin/env node
 /**
- * 把外部人设文本导入 persona-hub 数据目录（迁移用；不写仓库、不写记忆库）。
- *
- * 用法：node scripts/import-persona.mjs <src.txt> [key]
- * key 默认 bigfish；目录 0700、文件 0600。
+ * CLI 导入人设（给不爱用面板的用户）：node scripts/import-persona.mjs <src.txt> [key] [name]
+ * 产物：$DSH_HOME/persona-hub/prompts/<key>.txt + meta.json 的 name/avatar 条目。
+ * 与面板「导入人设」走同一实现（persona-admin.importPersona），不复制逻辑。
  */
-import { mkdirSync, readFileSync, writeFileSync, chmodSync } from 'node:fs'
-import { join } from 'node:path'
-import { resolvePersonaDir, KEY_RE } from '../src/host/persona-store.js'
+import { readFileSync } from 'node:fs'
+import { basename } from 'node:path'
+import { importPersona } from '../src/host/persona-admin.js'
 
-const [src, key = 'bigfish'] = process.argv.slice(2)
-if (!src) { console.error('usage: node scripts/import-persona.mjs <src.txt> [key]'); process.exit(2) }
-if (!KEY_RE.test(key)) { console.error('[import-persona] invalid key'); process.exit(2) }
-
-const text = readFileSync(src, 'utf8').replace(/^\uFEFF/, '')
-const dir = resolvePersonaDir({})
-mkdirSync(dir, { recursive: true, mode: 0o700 })
-const out = join(dir, `${key}.txt`)
-writeFileSync(out, text, { encoding: 'utf8', mode: 0o600 })
-chmodSync(out, 0o600)
-console.log(`[import-persona] ok key=${key} chars=${text.length} -> ${out}`)
+const [src, keyArg, nameArg] = process.argv.slice(2)
+if (!src) { console.error('usage: node scripts/import-persona.mjs <src.txt> [key] [name]'); process.exit(2) }
+const key = keyArg || basename(src).replace(/\.txt$/i, '').toLowerCase().replace(/[^a-z0-9_-]/g, '-').slice(0, 32)
+const text = readFileSync(src, 'utf8')
+const got = importPersona({}, { key, name: nameArg || key, text, overwrite: true })
+if (!got.ok) { console.error('[import-persona]', got.error); process.exit(1) }
+console.log(`[import-persona] ok key=${got.key} chars=${got.chars}`)
