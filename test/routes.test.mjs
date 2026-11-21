@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { createRoutes } from '../src/host/routes.js'
 import { createResolver } from '../src/host/resolver.js'
 import { readPersona } from '../src/host/persona-store.js'
+import { importPersona } from '../src/host/persona-admin.js'
 
 let server, base
 const hinted = []
@@ -29,6 +30,9 @@ let oldHome
 before(async () => {
   oldHome = process.env.DSH_HOME
   process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'dshhome-'))
+  // 开源包只带 bigfish；QQ 角色写用户目录（真实装机同样）
+  importPersona(config, { key: 'aluna', name: '阿罗娜', text: '阿罗娜正文' })
+  importPersona(config, { key: 'yiyi', name: '一叶', text: '一叶正文' })
   const resolver = createResolver({ config, store: { readPersona } })
   server = http.createServer(createRoutes({ config, hook, resolver, ctx }))
   await new Promise((r) => server.listen(0, '127.0.0.1', r))

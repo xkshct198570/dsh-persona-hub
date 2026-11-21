@@ -53,35 +53,42 @@ function cfgFor(home, extra = {}) {
   return { assets: { dir: userPrompts(home), ...extra } }
 }
 
-test('出厂三角色（bigfish/aluna/yiyi）可从 shipped 读到', async () => {
+/** 本机 QQ 角色不进开源包：测试需要时写到用户目录（与真实装机一致）。 */
+function seedUserRoles(home) {
+  const dir = userPrompts(home)
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'aluna.txt'), '你是阿罗娜。'.padEnd(120, 'x'), 'utf8')
+  writeFileSync(join(dir, 'yiyi.txt'), '你是一叶。'.padEnd(120, 'x'), 'utf8')
+  mkdirSync(join(home, 'persona-hub'), { recursive: true })
+  writeFileSync(userMeta(home), JSON.stringify({ aluna: { name: '阿罗娜', avatar: '' }, yiyi: { name: '一叶', avatar: '' } }), 'utf8')
+}
+
+test('出厂只带大肥鱼（开源包不带 QQ 角色）', async () => {
   await withTempHome(async (home) => {
-    // 用户目录不存在 = 纯出厂态
     assert.equal(existsSync(userPrompts(home)), false)
     assert.ok(SHIPPED_PROMPTS_DIR.startsWith('/') && SHIPPED_PROMPTS_DIR.endsWith(join('personas', 'prompts')))
     assert.ok(existsSync(SHIPPED_META_PATH))
     assert.ok(existsSync(SHIPPED_PROMPTS_DIR))
 
     const list = listPersonas(cfgFor(home))
-    for (const key of TRIO) {
-      const item = list.find((x) => x.key === key)
-      assert.ok(item, `列表缺 ${key}`)
-      assert.equal(item.origin, 'shipped')
-      assert.ok(item.chars > 100, `${key} chars=${item.chars}`)
-      assert.ok(item.mtime > 0)
-    }
-    assert.equal(list.find((x) => x.key === 'bigfish').name, '大肥鱼')
-    assert.equal(list.find((x) => x.key === 'aluna').name, '阿罗娜')
-    assert.equal(list.map((x) => x.key).join(','), [...list.map((x) => x.key)].sort().join(','))
+    assert.deepEqual(list.map((x) => x.key), ['bigfish'])
+    const big = list[0]
+    assert.equal(big.origin, 'shipped')
+    assert.ok(big.chars > 100)
+    assert.equal(big.name, '大肥鱼')
 
-    for (const key of TRIO) {
-      const got = readPersona(cfgFor(home), key)
-      assert.equal(got.ok, true, `${key}: ${JSON.stringify(got)}`)
-      assert.equal(got.key, key)
-      assert.ok(got.text.length > 100)
-      assert.equal(typeof got.mtime, 'number')
-      assert.equal(got.meta.avatar, '')
-    }
-    assert.match(readPersona(cfgFor(home), 'bigfish').text, /大肥鱼/)
+    const got = readPersona(cfgFor(home), 'bigfish')
+    assert.equal(got.ok, true)
+    assert.match(got.text, /大肥鱼/)
+    assert.equal(got.meta.name, '大肥鱼')
+    assert.equal(got.meta.avatar, '')
+    assert.equal(readPersona(cfgFor(home), 'aluna').ok, false)
+
+    // 用户目录补 QQ 角色后，二者以 user 身份出现
+    seedUserRoles(home)
+    const merged = listPersonas(cfgFor(home))
+    for (const key of ['bigfish', 'aluna', 'yiyi']) assert.ok(merged.find((x) => x.key === key), key)
+    assert.equal(merged.find((x) => x.key === 'aluna').origin, 'user')
   })
 })
 
@@ -101,8 +108,7 @@ test('用户同名文件覆盖出厂资产，未覆盖的仍回退出厂', async
     const bigfish = list.find((x) => x.key === 'bigfish')
     assert.equal(bigfish.origin, 'user')
     assert.equal(bigfish.chars, '用户改写的大肥鱼人设'.length, 'chars 是字符数而非字节数')
-    assert.equal(list.find((x) => x.key === 'aluna').origin, 'shipped')
-    assert.match(readPersona(cfg, 'aluna').text, /阿罗娜/)
+    assert.equal(list.find((x) => x.key === 'aluna'), undefined, '出厂不再带 QQ 角色')
   })
 })
 
@@ -120,8 +126,6 @@ test('meta 合并：出厂全保留，用户同名 key 覆盖、新 key 追加',
     const meta = loadMeta(cfgFor(home))
     assert.equal(meta.bigfish.name, '塘主的大肥鱼')
     assert.equal(meta.bigfish.avatar, '/avatars/bigfish.png')
-    assert.equal(meta.aluna.name, '阿罗娜', '出厂 meta 保留')
-    assert.equal(meta.yiyi.name, '一叶')
     assert.equal(meta.custom.name, '自定义角色')
     assert.equal(meta['bad/key'], undefined)
     assert.equal(meta.scalar, undefined)
@@ -140,17 +144,15 @@ test('坏 meta / 坏条目不抛，返回已解析部分', async () => {
     writeFileSync(metaPath, '{ "bigfish": { "name": "半截', 'utf8')
     const broken = loadMeta(cfgFor(home))
     assert.equal(broken.bigfish.name, '大肥鱼', '坏 JSON 整体忽略，出厂 meta 生效')
-    assert.equal(listPersonas(cfgFor(home)).length >= 3, true)
+    assert.equal(listPersonas(cfgFor(home)).some((x) => x.key === 'bigfish'), true)
     assert.equal(readPersona(cfgFor(home), 'bigfish').ok, true)
 
     writeFileSync(metaPath, '[]', 'utf8')
-    assert.equal(loadMeta(cfgFor(home)).aluna.name, '阿罗娜')
 
     writeFileSync(metaPath, JSON.stringify({ bigfish: 'not-an-object' }), 'utf8')
     assert.equal(loadMeta(cfgFor(home)).bigfish.name, '大肥鱼')
 
     writeFileSync(metaPath, '', 'utf8')
-    assert.equal(loadMeta(cfgFor(home)).yiyi.name, '一叶')
   })
 })
 
@@ -266,7 +268,8 @@ test('缺文件 / BOM 剥离 / 默认路径 / watch 开关关闭', async () => {
     assert.equal(list.some((x) => x.key === 'bad name'), false)
     assert.equal(list.some((x) => x.key === 'sub'), false)
     assert.equal(list.find((x) => x.key === 'bom').origin, 'user')
-    assert.equal(list.find((x) => x.key === 'aluna').origin, 'shipped')
+    seedUserRoles(home)
+    assert.equal(listPersonas(cfg).find((x) => x.key === 'aluna').origin, 'user')
 
     let fired = 0
     // 目录/文件全部不存在时 watch 不得抛，dispose 可正常关闭

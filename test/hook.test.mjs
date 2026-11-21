@@ -32,13 +32,20 @@ test('subagent 返回空', () => {
 })
 
 test('config.dsh.defaultPersona 切换即换文本', () => {
-  const { ctx, state } = fakeCtx()
-  const config = { dsh: { enabled: true, defaultPersona: 'aluna' } }
-  const hook = installPersonaHook(ctx, { config })
-  assert.match(state.section.text({}), /阿罗娜/)
-  config.dsh.defaultPersona = 'bigfish'
-  hook.refresh()
-  assert.match(state.section.text({}), /大肥鱼/)
+  const home = mkdtempSync(join(tmpdir(), 'dshhome-'))
+  const old = process.env.DSH_HOME
+  process.env.DSH_HOME = home
+  try {
+    mkdirSync(join(home, 'persona-hub', 'prompts'), { recursive: true })
+    writeFileSync(join(home, 'persona-hub', 'prompts', 'aluna.txt'), '你是阿罗娜（测试）', 'utf8')
+    const { ctx, state } = fakeCtx()
+    const config = { dsh: { enabled: true, defaultPersona: 'aluna' } }
+    const hook = installPersonaHook(ctx, { config })
+    assert.match(state.section.text({}), /阿罗娜/)
+    config.dsh.defaultPersona = 'bigfish'
+    hook.refresh()
+    assert.match(state.section.text({}), /大肥鱼/)
+  } finally { if (old === undefined) delete process.env.DSH_HOME; else process.env.DSH_HOME = old }
 })
 
 test('用户目录资产覆盖出厂', () => {

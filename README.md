@@ -33,7 +33,7 @@
 ## 资产（纯文本 + 元数据分离）
 
 ```
-personas/prompts/<key>.txt     # 纯 Prompt 正文（默认 bigfish/aluna/yiyi）
+personas/prompts/<key>.txt     # 纯 Prompt 正文（出厂仅 bigfish，DSH 默认；QQ 角色按需导入）
 personas/meta.json             # {"bigfish":{"name":"大肥鱼","avatar":""}}
 ```
 
