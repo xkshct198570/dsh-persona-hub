@@ -1,0 +1,5 @@
+# S1 骨架：bundle 只插入本包一行。
+- insert:
+    - id: persona-hub
+      name: dsh-persona-hub
+      config: {}
