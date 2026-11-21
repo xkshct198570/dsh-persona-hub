@@ -14,6 +14,7 @@ import { isLoopback, readJson, sendJson } from './http-kit.js'
 import { listPersonas, readPersona, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './persona-store.js'
 import { writeConfigMirror } from './config-mirror.js'
 import { identityForPersona } from './role-map.js'
+import { bool, value } from './config-values.js'
 
 const PREFIX = '/persona-hub/api'
 
@@ -53,7 +54,7 @@ export function createRoutes({ config, hook, resolver, ctx }) {
   }
 
   return async function handle(req, res) {
-    if (!config?.panel?.allowRemote && !isLoopback(req.socket?.remoteAddress)) {
+    if (!bool(config?.panel?.allowRemote, false) && !isLoopback(req.socket?.remoteAddress)) {
       return sendJson(res, 403, { ok: false, error: 'not_loopback' })
     }
     let path = ''
@@ -80,7 +81,7 @@ export function createRoutes({ config, hook, resolver, ctx }) {
       return sendJson(res, 200, { ok: true, config: {
         dsh: { ...(config?.dsh || {}) },
         bots: structuredCloneSafe(config?.bots || {}),
-        assets: { dir: config?.assets?.dir || '', watch: config?.assets?.watch !== false },
+        assets: { dir: value(config?.assets?.dir, ''), watch: bool(config?.assets?.watch, true) },
       } })
     }
 

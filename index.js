@@ -12,6 +12,7 @@ import { Config } from './src/host/config.js'
 import { createRoutes, PREFIX, applyIdentityHint } from './src/host/routes.js'
 import { installPersonaHook } from './src/host/hook.js'
 import { createResolver } from './src/host/resolver.js'
+import { bool } from './src/host/config-values.js'
 import { watchPersonas, listPersonas, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './src/host/persona-store.js'
 import { writeConfigMirror } from './src/host/config-mirror.js'
 
@@ -36,7 +37,7 @@ export function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: PREFIX, handler }), 'persona-hub: routes')
 
   // 资产热重载：文本/meta 一变，下一轮 assemble 即用新内容。
-  if (config?.assets?.watch !== false) {
+  if (bool(config?.assets?.watch, true)) {
     ctx.effect(() => watchPersonas(config, () => hook.refresh()), 'persona-hub: assets watch')
   }
 
