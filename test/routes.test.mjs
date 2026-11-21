@@ -1,6 +1,9 @@
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
+import { mkdtempSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
 import { createRoutes } from '../src/host/routes.js'
 import { createResolver } from '../src/host/resolver.js'
@@ -22,13 +25,19 @@ const ctx = {
   },
 }
 
+let oldHome
 before(async () => {
+  oldHome = process.env.DSH_HOME
+  process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'dshhome-'))
   const resolver = createResolver({ config, store: { readPersona } })
   server = http.createServer(createRoutes({ config, hook, resolver, ctx }))
   await new Promise((r) => server.listen(0, '127.0.0.1', r))
   base = `http://127.0.0.1:${server.address().port}`
 })
-after(async () => { await new Promise((r) => server.close(r)) })
+after(async () => {
+  await new Promise((r) => server.close(r))
+  if (oldHome === undefined) delete process.env.DSH_HOME; else process.env.DSH_HOME = oldHome
+})
 
 test('personas：出厂三角色 + dsh 默认', async () => {
   const res = await fetch(base + '/persona-hub/api/personas')

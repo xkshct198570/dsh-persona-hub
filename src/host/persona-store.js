@@ -14,7 +14,7 @@ import { dirname, join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 
-export const KEY_RE = /^[a-zA-Z0-9._-]{1,64}$/
+export const KEY_RE = /^[a-z][a-z0-9_-]{0,31}$/
 export const SHIPPED_PROMPTS_DIR = resolve(fileURLToPath(new URL('../../personas/prompts/', import.meta.url)))
 export const SHIPPED_META_PATH = fileURLToPath(new URL('../../personas/meta.json', import.meta.url))
 

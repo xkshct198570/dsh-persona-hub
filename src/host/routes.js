@@ -11,7 +11,8 @@
  * 默认只回环。
  */
 import { isLoopback, readJson, sendJson } from './http-kit.js'
-import { listPersonas, readPersona } from './persona-store.js'
+import { listPersonas, readPersona, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './persona-store.js'
+import { writeConfigMirror } from './config-mirror.js'
 import { identityForPersona } from './role-map.js'
 
 const PREFIX = '/persona-hub/api'
@@ -40,6 +41,11 @@ export function createRoutes({ config, hook, resolver, ctx }) {
         dsh: next.dsh,
         bots: next.bots,
       }))
+      writeConfigMirror({ dsh: next.dsh, bots: next.bots }, {
+        promptsDir: resolvePromptsDir(config),
+        metaFile: resolveMetaPath(config),
+        fallbackPromptsDir: SHIPPED_PROMPTS_DIR,
+      })
       return { ok: true }
     } catch (err) {
       return { ok: false, error: 'config_save_failed', detail: String(err?.message || err) }

@@ -175,10 +175,10 @@ test('key 白名单：拒绝路径穿越、绝对路径、超长与非 ASCII', a
       assert.equal(got.error, 'invalid_key', `应返回 invalid_key: ${JSON.stringify(key)}`)
     }
     assert.equal(KEY_RE.test('bigfish'), true)
-    assert.equal(KEY_RE.test('v1.2_ok-x'), true)
+    assert.equal(KEY_RE.test('v1-2_ok-x'), true)
     assert.equal(KEY_RE.test('../x'), false)
     // 合法但不存在 → missing，而不是 invalid_key
-    assert.equal(readPersona(cfg, 'v1.2_ok-x').error, 'persona_missing')
+    assert.equal(readPersona(cfg, 'v1-2_ok-x').error, 'persona_missing')
   })
 })
 

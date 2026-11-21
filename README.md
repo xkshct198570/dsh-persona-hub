@@ -39,10 +39,11 @@ personas/meta.json             # {"bigfish":{"name":"大肥鱼","avatar":""}}
 
 用户目录 `$DSH_HOME/persona-hub/prompts/` + `meta.json` 同名覆盖出厂资产；`fs.watch` 热重载（150ms 防抖）。
 
-## Service / HTTP 契约
+## Service / 跨进程契约
 
-- 插件内：`ctx.get('personaHub').resolvePersona({ source, bot_id, chat_type, target_id })` → `{personaKey,name,avatar,text} | null`
-- 跨进程（B 包）：`GET /ai-router-bridge/api/persona/resolve?...`（默认只回环；C 未装 → 503）。
+- 宿主内：`ctx.get('personaHub').resolvePersona({ source, bot_id, chat_type, target_id })` → `{personaKey,name,avatar,text} | null`；`explainResolve` 带因返回。
+- 跨进程：C 在 `apply`/保存/切换后**原子写** `$DSH_HOME/persona-hub/config.json`（tmp+rename，0600）；Python 网关 `utils/persona_reader.py` 直读该文件与 `prompts/<key>.txt`，不经过任何 HTTP 代理。
+- C 不做跨进程 HTTP 人设接口；面板 API 只服务本机 UI。
 
 ## 边界
 

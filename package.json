@@ -1,6 +1,6 @@
 {
   "name": "dsh-persona-hub",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "全平台多主体人设路由中枢：dsh 网页端人设 + bots（私聊/群聊默认与特殊绑定）级联解析；资产 .txt/meta.json 分离，fs.watch 热重载。",
   "type": "module",
   "license": "MIT",

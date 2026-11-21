@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0 — 2026-11-22
+
+- 极简手术：C 原子写 `$DSH_HOME/persona-hub/config.json` 供 Python 直读；key 收紧为 `[a-z][a-z0-9_-]{0,31}`；删除跨进程 HTTP 叙事。
+
 ## 0.3.0 — 2026-11-22
 
 - S1.5：多主体（bots）配置与 resolvePersona 级联；资产拆为 prompts/*.txt + meta.json；fs.watch 热重载；跨进程查询口（B 包路由）。

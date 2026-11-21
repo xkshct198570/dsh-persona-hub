@@ -12,7 +12,8 @@ import { Config } from './src/host/config.js'
 import { createRoutes, PREFIX, applyIdentityHint } from './src/host/routes.js'
 import { installPersonaHook } from './src/host/hook.js'
 import { createResolver } from './src/host/resolver.js'
-import { watchPersonas, listPersonas } from './src/host/persona-store.js'
+import { watchPersonas, listPersonas, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './src/host/persona-store.js'
+import { writeConfigMirror } from './src/host/config-mirror.js'
 
 export { Config }
 export const inject = ['webServer', 'systemPrompt']
@@ -37,6 +38,18 @@ export function apply(ctx, config) {
   // 资产热重载：文本/meta 一变，下一轮 assemble 即用新内容。
   if (config?.assets?.watch !== false) {
     ctx.effect(() => watchPersonas(config, () => hook.refresh()), 'persona-hub: assets watch')
+  }
+
+  // 跨进程稳定文件：Python 网关只读这里；原子写，DSH 崩了也不影响 QQ 端。
+  try {
+    const mirrored = writeConfigMirror(config, {
+      promptsDir: resolvePromptsDir(config),
+      metaFile: resolveMetaPath(config),
+      fallbackPromptsDir: SHIPPED_PROMPTS_DIR,
+    })
+    log(`[persona-hub] config mirror -> ${mirrored}`)
+  } catch (err) {
+    log(`[persona-hub] config mirror failed: ${err?.message || 'error'}`)
   }
 
   const hinted = applyIdentityHint(ctx, hook.activeKey())
