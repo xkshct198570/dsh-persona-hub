@@ -1,11 +1,11 @@
 /**
- * 人设注入：systemPrompt.section（静态资产），不是 context。
+ * 人设注入：systemPrompt.section（静态资产，order=10），不是 context。
  *
- * 顺序：① 宿主基础(-1000/0) → ② 人设(10) → ③ 记忆 context(100) → ④ 当前对话。
- * 默认角色：active.json 的选择 > Config.defaultPersona（出厂 bigfish）。
+ * 当前人设 = Config.dsh.defaultPersona（网页端）；QQ 端由网关按 message_type 路由，本包不注入。
+ * 资产改动由 fs.watch 触发 refresh，下一次 assemble 即取新文本。
  * 生命周期：注册包在 ctx.effect；dispose 后返回空串。
  */
-import { readPersona, readActive } from './persona-store.js'
+import { readPersona } from './persona-store.js'
 
 export const SECTION_NAME = 'persona-hub:persona'
 export const SECTION_ORDER = 10
@@ -15,11 +15,11 @@ export function installPersonaHook(ctx, { config, log = () => {} }) {
   const cache = { key: '', text: '', exp: 0, mtime: 0 }
   let disposed = false
 
-  const resolveKey = () => readActive()?.key || String(config?.defaultPersona || 'bigfish')
+  const resolveKey = () => String(config?.dsh?.defaultPersona || 'bigfish')
 
   const resolveText = (context) => {
     try {
-      if (disposed || config?.injectEnabled === false) return ''
+      if (disposed || config?.dsh?.enabled === false) return ''
       const origin = context?.agent?.session?.header?.origin
         ?? context?.scope?.session?.header?.origin
       if (origin === 'subagent') return ''
@@ -42,7 +42,7 @@ export function installPersonaHook(ctx, { config, log = () => {} }) {
 
   return {
     dispose() { disposed = true; cache.text = ''; cache.exp = 0 },
-    refresh() { cache.exp = 0 },
+    refresh() { cache.exp = 0; cache.key = '' },
     resolveText,
     activeKey: resolveKey,
   }

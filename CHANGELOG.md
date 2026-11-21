@@ -1,8 +1,13 @@
 # Changelog
 
+## 0.3.0 — 2026-11-22
+
+- S1.5：多主体（bots）配置与 resolvePersona 级联；资产拆为 prompts/*.txt + meta.json；fs.watch 热重载；跨进程查询口（B 包路由）。
+- 移除 active.json（选择改由 Config.dsh.defaultPersona 承担）。
+
 ## 0.2.0 — 2026-11-21
 
-- S1 拆分：三角色资产（bigfish/aluna/yiyi）、默认 bigfish、systemPrompt.section(order=10) 注入、切换/预览路由、身份提示映射。
+- S1 拆分：三角色资产、section 注入、切换/预览、身份提示。
 
 ## 0.1.0 — 2026-11-21
 

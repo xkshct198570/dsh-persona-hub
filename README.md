@@ -1,25 +1,50 @@
 # dsh-persona-hub
 
-双人设/角色管理（DeepSeek Harness 插件）。
+全平台多主体人设路由中枢（DeepSeek Harness 插件）。
 
-**状态：S1 拆分完成（0.2.0，未发布）** —— 三角色资产、默认 bigfish、section 注入、切换与身份提示已就位；编辑器/对话端点按 S3–S4 落地。
+**状态：S1.5（0.3.0，未发布）** —— 多主体配置、级联解析、资产分离/热重载、跨进程查询口已就位；面板编辑器在 S3 打磨。
 
-## 出厂角色（`personas/`）
+## 它解决什么
 
-- `bigfish.txt` → 大肥鱼（**DSH 网页端默认**）
-- `aluna.txt` → 阿罗娜（QQ 私聊角色；网页端也可选）
-- `yiyi.txt` → 一叶（QQ 群角色；网页端也可选）
+- 网页端（DSH）要一个默认角色，新建会话即可用；
+- 多个机器人主体（不限 QQ）各有私聊/群聊默认角色与按目标号的特例；
+- Python 网关或未来任何外部框架，通过一个稳定 HTTP 接口问"C 包：这个主体/会话该用谁"，不用读插件代码。
 
-资产可被 `$DSH_HOME/persona-hub/personas/` 同名文件覆盖；`scripts/import-persona.mjs` 负责迁移外部文本。
+## 配置结构
 
-## 网页端注入与记忆身份提示
+```ts
+{
+  dsh: { enabled: boolean; defaultPersona: string },
+  bots: Record<botId, {
+    enabled: boolean;
+    platform: string;                 // 默认 qq；其他平台只作标注
+    private: { enabled: boolean; defaultPersona: string; bindings: Record<targetId, personaKey> },
+    group:   { enabled: boolean; defaultPersona: string; bindings: Record<targetId, personaKey> },
+  }>,
+  assets: { dir: string; watch: boolean },
+  panel: { allowRemote: boolean; pollMs: number },
+}
+```
 
-- `systemPrompt.section(order=10)` 注入当前角色（默认 bigfish），静态文本、不插值。
-- 切换角色写 `$DSH_HOME/persona-hub/active.json`，并向已安装的记忆插件发身份提示：
-  `bigfish → workspace=web, role_id=''`；`aluna → role_id=aluna, workspace=web`；`yiyi → role_id=yiyi, workspace=web`。
-- **QQ 端不归本包**：私聊阿罗娜 / 群聊一叶由 Python 网关按 `message_type` 硬路由，本包不接管。
+**降级链**（任一层关闭/缺键 → `null`，调用方兜底）：
+`source=dsh` → `dsh.defaultPersona`；
+`source=其他` → `bots[bot_id].enabled` → `chat_type` 通道 → `bindings[target_id]` → `defaultPersona` → 资产文件。
+
+## 资产（纯文本 + 元数据分离）
+
+```
+personas/prompts/<key>.txt     # 纯 Prompt 正文（默认 bigfish/aluna/yiyi）
+personas/meta.json             # {"bigfish":{"name":"大肥鱼","avatar":""}}
+```
+
+用户目录 `$DSH_HOME/persona-hub/prompts/` + `meta.json` 同名覆盖出厂资产；`fs.watch` 热重载（150ms 防抖）。
+
+## Service / HTTP 契约
+
+- 插件内：`ctx.get('personaHub').resolvePersona({ source, bot_id, chat_type, target_id })` → `{personaKey,name,avatar,text} | null`
+- 跨进程（B 包）：`GET /ai-router-bridge/api/persona/resolve?...`（默认只回环；C 未装 → 503）。
 
 ## 边界
 
-- 管：角色资产、网页端默认角色、切换、注入、预览、导入导出。
-- 不管：记忆读写、召回、注入（那是记忆插件）、QQ 端人设路由。
+- 管：角色资产、多主体路由、网页端注入、切换、预览、配置。
+- 不管：记忆读写/召回（A 包）；QQ 端人设硬路由（Python 网关按 `message_type` 决定，本包不接管）。

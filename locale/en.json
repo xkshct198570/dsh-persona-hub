@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Persona Hub",
-    "description": "Persona texts, role switching and chat; independent from the memory plugin."
+    "title": "Persona Routing Hub",
+    "description": "Multi-bot persona routing across platforms: web default persona plus per-bot, per-channel and per-target bindings."
   }
 }

@@ -1,0 +1,17 @@
+{
+  "bigfish": {
+    "name": "大肥鱼",
+    "avatar": "",
+    "description": "DSH 网页端默认角色"
+  },
+  "aluna": {
+    "name": "阿罗娜",
+    "avatar": "",
+    "description": "QQ 私聊角色"
+  },
+  "yiyi": {
+    "name": "一叶",
+    "avatar": "",
+    "description": "QQ 群角色"
+  }
+}
