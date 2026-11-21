@@ -36,8 +36,9 @@ for (const f of pkg.files || []) {
 
 // 字面量拆成两段写成正则：避免本脚本自己触发禁区扫描（自指例外要显式解释，别靠白名单）
 const FORBIDDEN = [
-  new RegExp('39' + '82'), new RegExp('al' + 'una'), new RegExp('124' + '6277257'),
-  new RegExp('prompt' + '_dsh'), new RegExp('feiyu' + '-mood'),
+  // C 是角色资产库：role id（aluna/yiyi）属预期，不扫；只防本机路径/号码/别家插件
+  new RegExp('39' + '82'), new RegExp('124' + '6277257'),
+  new RegExp('feiyu' + '-mood'),
   new RegExp('/home' + '/hy', 'i'), new RegExp('ai-' + 'router', 'i'),
 ]
 const scanRoots = ['index.js', 'lib/client.js', 'locale', 'src']

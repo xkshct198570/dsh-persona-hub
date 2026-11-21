@@ -1,6 +1,6 @@
 {
   "name": "dsh-persona-hub",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "双人设/角色管理：人设文本、角色切换、按角色对话（端点可配）；与记忆插件零依赖。",
   "type": "module",
   "license": "MIT",
@@ -23,7 +23,8 @@
     "icon.svg",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "personas"
   ],
   "engines": {
     "node": ">=22.5",
