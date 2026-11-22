@@ -117,7 +117,7 @@ test('meta 合并：出厂全保留，用户同名 key 覆盖、新 key 追加',
     const metaPath = userMeta(home)
     mkdirSync(join(home, 'persona-hub'), { recursive: true })
     writeFileSync(metaPath, JSON.stringify({
-      bigfish: { name: '塘主的大肥鱼', avatar: '/avatars/bigfish.png' },
+      bigfish: { name: '塘主的大肥鱼', avatar: '/avatars/bigfish.png', description: '塘主默认角色' },
       custom: { name: '自定义角色', avatar: '' },
       'bad/key': { name: '应被忽略' },
       scalar: 'ignored',
@@ -126,13 +126,14 @@ test('meta 合并：出厂全保留，用户同名 key 覆盖、新 key 追加',
     const meta = loadMeta(cfgFor(home))
     assert.equal(meta.bigfish.name, '塘主的大肥鱼')
     assert.equal(meta.bigfish.avatar, '/avatars/bigfish.png')
+    assert.equal(meta.bigfish.description, '塘主默认角色', 'meta.description 必须保留（P2-2）')
     assert.equal(meta.custom.name, '自定义角色')
     assert.equal(meta['bad/key'], undefined)
     assert.equal(meta.scalar, undefined)
 
     const got = readPersona(cfgFor(home), 'bigfish')
     assert.equal(got.ok, true)
-    assert.deepEqual(got.meta, { name: '塘主的大肥鱼', avatar: '/avatars/bigfish.png' })
+    assert.deepEqual(got.meta, { name: '塘主的大肥鱼', avatar: '/avatars/bigfish.png', description: '塘主默认角色' })
   })
 })
 

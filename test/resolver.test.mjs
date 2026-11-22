@@ -229,3 +229,55 @@ test('store.readPersona 以 (config, key) 调用', () => {
   assert.equal(store.calls[0].cfg, config)
   assert.equal(store.calls[0].key, 'yiyi')
 })
+
+// ---- 2026-11-22 补：enabled 语义与 Python 网关对齐（只有显式 false/0/'' 才关闭） ----
+
+test('enabled 缺省＝开启：dsh/bot/channel 三处 undefined 都照常解析', () => {
+  const config = makeConfig((cfg) => {
+    delete cfg.dsh.enabled
+    delete cfg.bots['10001'].enabled
+    delete cfg.bots['10001'].private.enabled
+  })
+  const resolve = resolverFor({ config })
+  assert.equal(resolve({ source: 'dsh' }).personaKey, 'bigfish')
+  assert.equal(resolve({ source: 'qq', bot_id: '10001', chat_type: 'private' }).personaKey, 'aluna')
+})
+
+test('enabled 显式 false/0/空串都算关闭（镜像文件手工编辑场景）', () => {
+  for (const off of [false, 0, '']) {
+    const config = makeConfig((cfg) => { cfg.dsh.enabled = off })
+    assert.equal(resolverFor({ config })({ source: 'dsh' }), null, `dsh.enabled=${JSON.stringify(off)} 应关闭`)
+    const botCfg = makeConfig((cfg) => { cfg.bots['10001'].enabled = off })
+    assert.equal(resolverFor({ config: botCfg })({ source: 'qq', bot_id: '10001', chat_type: 'private' }), null)
+    const chanCfg = makeConfig((cfg) => { cfg.bots['10001'].private.enabled = off })
+    assert.equal(resolverFor({ config: chanCfg })({ source: 'qq', bot_id: '10001', chat_type: 'private' }), null)
+  }
+})
+
+test('explain 的 11 个降级 reason 码逐条可断言（§18.7）', () => {
+  const base = makeConfig()
+  const cases = [
+    [{ source: '' }, 'source_missing'],
+    [{ source: 'qq', chat_type: 'private' }, 'bot_id_required'],
+    [{ source: 'qq', bot_id: 'nope', chat_type: 'private' }, 'bot_unknown'],
+    [{ source: 'qq', bot_id: '10001', chat_type: 'ch' }, 'chat_type_invalid'],
+    [{ source: 'telegram', bot_id: '10001', chat_type: 'private' }, 'platform_mismatch'],
+  ]
+  for (const [q, reason] of cases) {
+    assert.equal(createResolver({ config: base, store: makeStore() }).explain(q).reason, reason, JSON.stringify(q))
+  }
+  const offDsh = makeConfig((cfg) => { cfg.dsh.enabled = false })
+  assert.equal(createResolver({ config: offDsh, store: makeStore() }).explain({ source: 'dsh' }).reason, 'dsh_disabled')
+  const unsetDsh = makeConfig((cfg) => { cfg.dsh.defaultPersona = '' })
+  assert.equal(createResolver({ config: unsetDsh, store: makeStore() }).explain({ source: 'dsh' }).reason, 'default_persona_unset')
+  const noAsset = makeConfig((cfg) => { cfg.dsh.defaultPersona = 'ghost' })
+  assert.equal(createResolver({ config: noAsset, store: makeStore() }).explain({ source: 'dsh' }).reason, 'persona_asset_missing')
+  const offBot = makeConfig((cfg) => { cfg.bots['10001'].enabled = false })
+  assert.equal(createResolver({ config: offBot, store: makeStore() }).explain({ source: 'qq', bot_id: '10001', chat_type: 'private' }).reason, 'bot_disabled')
+  const offChannel = makeConfig((cfg) => { cfg.bots['10001'].private.enabled = false })
+  assert.equal(createResolver({ config: offChannel, store: makeStore() }).explain({ source: 'qq', bot_id: '10001', chat_type: 'private' }).reason, 'chat_type_disabled')
+  const unsetChannel = makeConfig((cfg) => { cfg.bots['10001'].private.defaultPersona = '' })
+  assert.equal(createResolver({ config: unsetChannel, store: makeStore() }).explain({ source: 'qq', bot_id: '10001', chat_type: 'private' }).reason, 'default_persona_unset')
+  const throwing = createResolver({ config: base, store: makeStore({ throws: true }) })
+  assert.equal(throwing.explain({ source: 'dsh' }).reason, 'resolve_error')
+})

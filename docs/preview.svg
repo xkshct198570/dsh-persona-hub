@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="300" viewBox="0 0 640 300" role="img" aria-label="Persona routing hub">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#eef4fb"/>
+      <stop offset="1" stop-color="#f8fafc"/>
+    </linearGradient>
+    <linearGradient id="hub" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3f83c9"/>
+      <stop offset="1" stop-color="#225d92"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#4f7fa8"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="640" height="300" rx="16" fill="url(#bg)"/>
+  <rect x="0.75" y="0.75" width="638.5" height="298.5" rx="15.5" fill="none" stroke="#c9d8e8" stroke-width="1.5"/>
+
+  <g fill="none" stroke="#4f7fa8" stroke-width="2" stroke-linecap="round" marker-end="url(#arrow)">
+    <path d="M 176 78 C 226 78 236 128 282 138"/>
+    <path d="M 176 150 C 226 150 236 150 282 150"/>
+    <path d="M 176 222 C 226 222 236 172 282 162"/>
+    <path d="M 362 138 C 408 128 418 84 464 84"/>
+    <path d="M 362 150 C 408 150 418 150 464 150"/>
+    <path d="M 362 162 C 408 172 418 216 464 216"/>
+  </g>
+
+  <g>
+    <rect x="32" y="56" width="144" height="44" rx="10" fill="#ffffff" stroke="#b9cde2" stroke-width="1.5"/>
+    <circle cx="56" cy="78" r="12" fill="#8fb9df"/>
+    <rect x="76" y="68" width="76" height="7" rx="3.5" fill="#c9dcf0"/>
+    <rect x="76" y="81" width="50" height="6" rx="3" fill="#dbe7f3"/>
+
+    <rect x="32" y="128" width="144" height="44" rx="10" fill="#ffffff" stroke="#b9cde2" stroke-width="1.5"/>
+    <circle cx="56" cy="150" r="12" fill="#7fb2a4"/>
+    <rect x="76" y="140" width="66" height="7" rx="3.5" fill="#cbe4dd"/>
+    <rect x="76" y="153" width="44" height="6" rx="3" fill="#dcefe9"/>
+
+    <rect x="32" y="200" width="144" height="44" rx="10" fill="#ffffff" stroke="#b9cde2" stroke-width="1.5"/>
+    <circle cx="56" cy="222" r="12" fill="#b8a6d9"/>
+    <rect x="76" y="212" width="72" height="7" rx="3.5" fill="#ded5f0"/>
+    <rect x="76" y="225" width="48" height="6" rx="3" fill="#ece6f7"/>
+  </g>
+
+  <g>
+    <rect x="282" y="112" width="80" height="76" rx="14" fill="url(#hub)"/>
+    <circle cx="322" cy="140" r="15" fill="none" stroke="#dcebf9" stroke-width="3"/>
+    <circle cx="322" cy="140" r="5" fill="#dcebf9"/>
+    <path d="M 322 155 L 322 168 M 310 162 L 334 162" stroke="#dcebf9" stroke-width="3" stroke-linecap="round"/>
+    <path d="M 322 118 L 322 126 M 302 140 L 310 140 M 334 140 L 342 140" stroke="#bcd8f0" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+
+  <g>
+    <rect x="464" y="62" width="144" height="44" rx="10" fill="#ffffff" stroke="#b9cde2" stroke-width="1.5"/>
+    <rect x="482" y="72" width="30" height="24" rx="4" fill="none" stroke="#7fb2a4" stroke-width="2"/>
+    <path d="M 482 96 L 512 96 L 505 102 L 489 102 Z" fill="#7fb2a4" opacity="0.55"/>
+    <rect x="522" y="73" width="70" height="7" rx="3.5" fill="#cbe4dd"/>
+    <rect x="522" y="86" width="46" height="6" rx="3" fill="#dcefe9"/>
+
+    <rect x="464" y="128" width="144" height="44" rx="10" fill="#ffffff" stroke="#b9cde2" stroke-width="1.5"/>
+    <rect x="482" y="138" width="30" height="24" rx="6" fill="#e4eef8" stroke="#8fb9df" stroke-width="1.5"/>
+    <circle cx="497" cy="146" r="3" fill="#8fb9df"/>
+    <rect x="489" y="152" width="16" height="4" rx="2" fill="#8fb9df"/>
+    <rect x="522" y="139" width="62" height="7" rx="3.5" fill="#c9dcf0"/>
+    <rect x="522" y="152" width="40" height="6" rx="3" fill="#dbe7f3"/>
+
+    <rect x="464" y="194" width="144" height="44" rx="10" fill="#ffffff" stroke="#b9cde2" stroke-width="1.5"/>
+    <rect x="482" y="204" width="30" height="24" rx="6" fill="#f1ecfa" stroke="#b8a6d9" stroke-width="1.5"/>
+    <circle cx="492" cy="213" r="3" fill="#b8a6d9"/>
+    <circle cx="502" cy="213" r="3" fill="#b8a6d9"/>
+    <path d="M 489 221 Q 497 227 505 221" fill="none" stroke="#b8a6d9" stroke-width="2" stroke-linecap="round"/>
+    <rect x="522" y="205" width="68" height="7" rx="3.5" fill="#ded5f0"/>
+    <rect x="522" y="218" width="44" height="6" rx="3" fill="#ece6f7"/>
+  </g>
+
+  <g fill="#5f7f9c" opacity="0.75">
+    <rect x="196" y="56" width="10" height="4" rx="2"/>
+    <rect x="256" y="226" width="10" height="4" rx="2"/>
+    <rect x="196" y="148" width="10" height="4" rx="2"/>
+  </g>
+</svg>

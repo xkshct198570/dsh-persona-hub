@@ -1,7 +1,7 @@
 {
   "name": "dsh-persona-hub",
   "version": "0.5.0",
-  "description": "全平台多主体人设路由中枢：dsh 网页端人设 + bots（私聊/群聊默认与特殊绑定）级联解析；资产 .txt/meta.json 分离，fs.watch 热重载。",
+  "description": "网页端与各平台机器人各用哪份人设：一处配置、逐层回落；只读本地人设文本、不联网、不写记忆库，另镜像一份配置供 Python 网关直读。关掉后网页端不再注入额外人设、QQ 端回落网关旧逻辑。",
   "type": "module",
   "license": "MIT",
   "icon": "./icon.svg",
@@ -38,7 +38,7 @@
     "roleplay"
   ],
   "scripts": {
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test test/*.test.mjs test/client/*.test.mjs",
     "check": "node scripts/check.mjs"
   },
   "dsh": {

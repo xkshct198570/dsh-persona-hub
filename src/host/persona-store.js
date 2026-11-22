@@ -13,6 +13,7 @@ import { readdirSync, readFileSync, statSync, watch } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
+import { bool } from './config-values.js'
 
 export const KEY_RE = /^[a-z][a-z0-9_-]{0,31}$/
 export const SHIPPED_PROMPTS_DIR = resolve(fileURLToPath(new URL('../../personas/prompts/', import.meta.url)))
@@ -54,6 +55,7 @@ function parseMetaFile(path) {
     out[key] = {
       name: String(value.name ?? ''),
       avatar: String(value.avatar ?? ''),
+      description: String(value.description ?? ''),
     }
   }
   return out
@@ -97,6 +99,7 @@ export function listPersonas(cfg = {}) {
         key,
         name: String(m.name || key),
         avatar: String(m.avatar || ''),
+        description: String(m.description || ''),
         chars: countChars(path, st),
         mtime: st.mtimeMs,
         origin,
@@ -108,7 +111,7 @@ export function listPersonas(cfg = {}) {
 
 /**
  * 读取单角色正文。
- * @returns {{ok:true,key:string,text:string,meta:{name:string,avatar:string},mtime:number}
+ * @returns {{ok:true,key:string,text:string,meta:{name:string,avatar:string,description:string},mtime:number}
  *          | {ok:false,error:'invalid_key'|'persona_missing'|'persona_too_large'|'persona_unreadable'}}
  */
 export function readPersona(cfg, key) {
@@ -143,7 +146,7 @@ export function readPersona(cfg, key) {
       ok: true,
       key: k,
       text,
-      meta: { name: String(m.name || k), avatar: String(m.avatar || '') },
+      meta: { name: String(m.name || k), avatar: String(m.avatar || ''), description: String(m.description || '') },
       mtime: st.mtimeMs,
     }
   }
@@ -156,7 +159,8 @@ export function readPersona(cfg, key) {
  */
 export function watchPersonas(cfg = {}, onChange) {
   const empty = () => {}
-  if (cfg?.assets?.watch === false) return empty
+  // assets.watch 是 .volatile() 字段（Ref）：必须 bool() 解包，不能直接比较对象。
+  if (!bool(cfg?.assets?.watch, true)) return empty
   const notify = typeof onChange === 'function' ? onChange : empty
   const watchers = []
   let timer = null

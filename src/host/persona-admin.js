@@ -7,8 +7,8 @@
  * - 写盘一律 tmp + fsync + rename；目录 0700、文件 0600。
  * - 删除只删用户副本；若某个 key 仍被 DSH/bots 引用，调用方需带 force 或先改配置。
  */
-import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { accessSync, closeSync, constants, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import {
   KEY_RE, SHIPPED_PROMPTS_DIR, loadMeta, readPersona, resolveMetaPath, resolvePromptsDir,
 } from './persona-store.js'
@@ -27,12 +27,46 @@ function readUserMeta(cfg) {
 function atomicWrite(path, text) {
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
   const tmp = `${path}.tmp-${process.pid}-${Date.now()}`
-  const fd = openSync(tmp, 'w', 0o600)
+  let fd
   try {
+    fd = openSync(tmp, 'w', 0o600)
     writeSync(fd, text, null, 'utf8')
     fsyncSync(fd)
-  } finally { closeSync(fd) }
-  renameSync(tmp, path)
+    closeSync(fd)
+    fd = undefined
+    renameSync(tmp, path)
+  } catch (err) {
+    // 失败时尽量清掉半截 tmp：EACCES/ENOSPC 时不把垃圾留在用户目录。
+    if (fd !== undefined) { try { closeSync(fd) } catch { /* 已关闭 */ } }
+    try { unlinkSync(tmp) } catch { /* 未创建或已清理 */ }
+    throw err
+  }
+}
+
+/**
+ * 资产目录可写性（面板只读态）：目录不存在时沿父目录上溯，找最近的可写祖先。
+ * @param {string} dir
+ * @returns {{ok:true}|{ok:false, reason:'is_file'|'not_writable'}}
+ */
+export function checkDirWritable(dir) {
+  let current = resolve(String(dir || ''))
+  for (let depth = 0; depth < 64; depth += 1) {
+    try {
+      const st = statSync(current)
+      if (!st.isDirectory()) return { ok: false, reason: 'is_file' }
+      accessSync(current, constants.W_OK)
+      return { ok: true }
+    } catch (err) {
+      if (err?.code === 'ENOENT') {
+        const parent = dirname(current)
+        if (parent === current) return { ok: false, reason: 'not_writable' }
+        current = parent
+        continue
+      }
+      return { ok: false, reason: 'not_writable' }
+    }
+  }
+  return { ok: false, reason: 'not_writable' }
 }
 
 /**
@@ -54,6 +88,9 @@ export function importPersona(cfg, input) {
     // 出厂同名：允许覆盖成用户副本，但必须显式 overwrite，避免误改"大肥鱼"
     return { ok: false, error: 'persona_exists_shipped' }
   }
+  // 写盘前置检查：只读目录不先写正文再在 meta 写盘时炸掉（留下半套资产）。
+  const preflight = writePreflight(cfg, dir)
+  if (preflight) return preflight
   atomicWrite(target, text)
 
   const metaPath = resolveMetaPath(cfg)
@@ -103,11 +140,29 @@ export function deletePersona(cfg, key, opts = {}) {
     const usage = findPersonaUsage(opts.config, key)
     if (usage.length) return { ok: false, error: 'persona_in_use', usage }
   }
+  // 写盘前置检查：只读目录不应先删正文再在 meta 写盘时炸掉。
+  const preflight = writePreflight(cfg, dir)
+  if (preflight) return preflight
   try { unlinkSync(target) } catch (err) { return { ok: false, error: 'persona_unreadable', detail: String(err?.message || err) } }
   const metaPath = resolveMetaPath(cfg)
   const meta = readUserMeta(cfg)
   if (meta[key]) { delete meta[key]; atomicWrite(metaPath, JSON.stringify(meta, null, 2) + '\n') }
   return { ok: true, key }
+}
+
+/** 写盘前置检查：正文目录与 meta 目录都必须可写；否则返回 write_failed（不抛）。 */
+function writePreflight(cfg, dir) {
+  const targets = [
+    [dir, 'assets_dir'],
+    [dirname(resolveMetaPath(cfg)), 'meta_dir'],
+  ]
+  for (const [target, where] of targets) {
+    const got = checkDirWritable(target)
+    if (got.ok !== true) {
+      return { ok: false, error: 'write_failed', detail: `${where}:${got.reason}` }
+    }
+  }
+  return null
 }
 
 /** 面板辅助：key 是否可删（用户副本存在）；出厂且无用户副本 → false。 */

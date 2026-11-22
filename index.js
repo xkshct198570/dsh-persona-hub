@@ -12,7 +12,7 @@ import { Config } from './src/host/config.js'
 import { createRoutes, PREFIX, applyIdentityHint } from './src/host/routes.js'
 import { installPersonaHook } from './src/host/hook.js'
 import { createResolver } from './src/host/resolver.js'
-import { bool } from './src/host/config-values.js'
+import { bool, isEnabled } from './src/host/config-values.js'
 import { readPersona, watchPersonas, listPersonas, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './src/host/persona-store.js'
 import { writeConfigMirror } from './src/host/config-mirror.js'
 
@@ -27,6 +27,7 @@ export function apply(ctx, config) {
 
   // 对外 Service：B/网关/其他插件只走这一处；C 内部实现可换。
   ctx.provide('personaHub', {
+    version: '0.5.0',
     resolvePersona: resolver,
     explainResolve: (q) => (typeof resolver.explain === 'function' ? resolver.explain(q) : { persona: null, reason: 'resolve_error', layer: 'entry' }),
     getPersona: (key) => readPersona(config, key),
@@ -53,12 +54,12 @@ export function apply(ctx, config) {
     log(`[persona-hub] config mirror failed: ${err?.message || 'error'}`)
   }
 
-  const hinted = applyIdentityHint(ctx, hook.activeKey())
+  const hinted = applyIdentityHint(ctx, hook.activeKey(), { enabled: isEnabled(config?.dsh?.enabled) })
   // A 若在本包之后挂载，启动瞬间取不到 service：1.5s 后重试一次（effect 管理，dispose 即清）。
   ctx.effect(() => {
-    const timer = setTimeout(() => { applyIdentityHint(ctx, hook.activeKey()) }, 1500)
+    const timer = setTimeout(() => { applyIdentityHint(ctx, hook.activeKey(), { enabled: isEnabled(config?.dsh?.enabled) }) }, 1500)
     return () => clearTimeout(timer)
   }, 'persona-hub: identity hint retry')
 
-  log(`[persona-hub] armed dsh=${hook.activeKey()} dshEnabled=${config?.dsh?.enabled !== false} bots=${Object.keys(config?.bots || {}).length} memoryHint=${hinted}`)
+  log(`[persona-hub] armed dsh=${hook.activeKey()} dshEnabled=${isEnabled(config?.dsh?.enabled)} bots=${Object.keys(config?.bots || {}).length} memoryHint=${hinted}`)
 }

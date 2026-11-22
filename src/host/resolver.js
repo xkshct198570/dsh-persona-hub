@@ -9,6 +9,7 @@
  * 返回 { personaKey, name, avatar, text }；meta 缺失时 name=personaKey、avatar=''。
  * `resolver.explain(q)` 返回 { persona, reason, layer }，供面板/网关诊断；与 resolve 同一判定。
  */
+import { isEnabled } from './config-values.js'
 
 /**
  * @param {{ config: any, store: { readPersona: (cfg:any, key:string) => any } }} deps
@@ -20,7 +21,7 @@ export function createResolver({ config, store }) {
       if (!source) return miss('source_missing', 'entry')
 
       if (source === 'dsh') {
-        if (!config?.dsh?.enabled) return miss('dsh_disabled', 'dsh')
+        if (!isEnabled(config?.dsh?.enabled)) return miss('dsh_disabled', 'dsh')
         const key = String(config?.dsh?.defaultPersona || '')
         if (!key) return miss('default_persona_unset', 'dsh')
         const persona = pick(key)
@@ -31,14 +32,14 @@ export function createResolver({ config, store }) {
       if (!botId) return miss('bot_id_required', 'bot')
       const bot = config?.bots?.[botId]
       if (!bot) return miss('bot_unknown', 'bot')
-      if (!bot.enabled) return miss('bot_disabled', 'bot')
+      if (!isEnabled(bot.enabled)) return miss('bot_disabled', 'bot')
       const platform = String(bot.platform || '')
       if (platform && platform !== source) return miss('platform_mismatch', 'bot')
 
       const chatType = String(q.chat_type || '')
       if (chatType !== 'private' && chatType !== 'group') return miss('chat_type_invalid', 'entry')
       const channel = chatType === 'group' ? bot.group : bot.private
-      if (!channel || !channel.enabled) return miss('chat_type_disabled', 'channel')
+      if (!channel || !isEnabled(channel.enabled)) return miss('chat_type_disabled', 'channel')
 
       const target = String(q.target_id || '')
       const bound = target ? channel.bindings?.[target] : undefined
