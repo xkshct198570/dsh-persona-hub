@@ -2,7 +2,7 @@
   "meta": {
     "title": "人设路由中枢",
     "description": "全平台多主体人设路由中枢：网页端注入当前角色；QQ 等平台按「主体 × 私聊/群 × 目标」级联解析唯一人设。正文存 $DSH_HOME/persona-hub/prompts/<key>.txt，元数据存 meta.json；不发网络请求、不写记忆库。关掉插件＝网页端不再注入人设，资产保留。",
-    "detail": "docs/DETAIL.md"
+    "detail": "docs/DETAIL.zh.md"
   },
   "act.close": "关闭",
   "act.delete": "删除主体",
@@ -54,7 +54,7 @@
   "bots.deleteConfirm": "删除主体「{id}」？会一并移除它的私聊/群聊通道与特例绑定，保存后生效。",
   "bots.empty": "还没有主体。在下面添加一个 bot id。",
   "bots.enabled": "启用主体",
-  "bots.hint": "主体 id 不限于 QQ 号：任何平台的机器人/账号 id 都可以；platform 只作标注。",
+  "bots.hint": "主体 id 不限于 QQ 号：任何平台的机器人/账号 id 都可以；platform 是解析时的来源匹配值（查询的 source 必须与它相等）。",
   "bots.platform": "平台",
   "bots.platformInvalid": "平台名不能为空，也不能是保留字 dsh。",
   "bots.title": "主体",
@@ -77,7 +77,9 @@
   "dsh.switched": "已切换网页端人设为「{name}」。",
   "dsh.title": "网页端（DSH）",
   "err.deleteFailed": "删除失败：{message}",
+  "err.dirIsShipped": "资产目录指向插件出厂目录（只读）：导入与删除已禁用，请先在设置里改资产目录。",
   "err.invalidConfig": "配置不合法：{message}",
+  "err.personaKeyInvalid": "角色 key 不合法：须以小写字母开头，只含 a-z0-9_-，最长 32 字符（留空＝该层不设）。",
   "err.mirrorFailed": "配置已保存，但跨进程镜像写入失败（Python 网关可能读到旧配置）。",
   "err.previewFailed": "预览失败：{message}",
   "err.resolveFailed": "解析失败：{message}",
@@ -153,6 +155,7 @@
   "settings.pollMs": "轮询间隔（毫秒）",
   "settings.pollMsDesc": "面板自动刷新间隔（毫秒，5000–600000）。",
   "settings.reasonIsFile": "路径是文件而不是目录",
+  "settings.reasonIsShipped": "资产目录是插件出厂目录（只读）",
   "settings.reasonNotWritable": "目录或上级目录不可写",
   "settings.tab": "默认页签",
   "settings.tabDesc": "面板打开时的默认页签。",

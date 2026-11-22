@@ -4,7 +4,7 @@ import { mkdtempSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { importPersona, deletePersona, findPersonaUsage, isUserPersona } from '../src/host/persona-admin.js'
-import { listPersonas, readPersona } from '../src/host/persona-store.js'
+import { listPersonas, readPersona, SHIPPED_PROMPTS_DIR } from '../src/host/persona-store.js'
 
 function withHome(fn) {
   const home = mkdtempSync(join(tmpdir(), 'dshhome-'))
@@ -55,4 +55,26 @@ test('被引用时需 force；usage 能指出 dsh/bots', () => withHome((cfg) =>
   const blocked = deletePersona(cfg, 'used', { config })
   assert.equal(blocked.error, 'persona_in_use')
   assert.equal(deletePersona(cfg, 'used', { config, force: true }).ok, true)
+}))
+
+test('assets.dir 指向出厂目录：导入/删除拒绝，绝不改包内资产', () => withHome(() => {
+  const cfg = { assets: { dir: SHIPPED_PROMPTS_DIR } }
+  const write = importPersona(cfg, { key: 'bigfish', text: '想覆盖出厂正文', overwrite: true })
+  assert.equal(write.ok, false)
+  assert.equal(write.error, 'assets_dir_shipped')
+  const remove = deletePersona(cfg, 'bigfish', { force: true })
+  assert.equal(remove.ok, false)
+  assert.equal(remove.error, 'assets_dir_shipped')
+  assert.equal(existsSync(join(SHIPPED_PROMPTS_DIR, 'bigfish.txt')), true, '包内 bigfish.txt 必须还在')
+}))
+
+test('引用扫描尊重 enabled 语义：显式 0/空串＝关闭，不算引用', () => withHome((cfg) => {
+  importPersona(cfg, { key: 'usedoff', text: 'u' })
+  for (const off of [false, 0, '']) {
+    const config = { dsh: { enabled: off, defaultPersona: 'usedoff' },
+      bots: { b1: { private: { enabled: true, defaultPersona: 'usedoff', bindings: {} }, group: { enabled: true, defaultPersona: '', bindings: {} } } } }
+    const usage = findPersonaUsage(config, 'usedoff')
+    assert.equal(usage.some((row) => row.where === 'dsh.defaultPersona'), false, `dsh.enabled=${JSON.stringify(off)} 不应算引用`)
+    assert.equal(usage.some((row) => row.where === 'bots.b1.private.defaultPersona'), true)
+  }
 }))

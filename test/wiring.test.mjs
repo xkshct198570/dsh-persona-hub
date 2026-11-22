@@ -103,6 +103,27 @@ test('接线：personaHub.resolvePersona(dsh) 命中 bigfish，qq 私聊命中 a
   }
 })
 
+test('独立安装：ctx.get(whaleMemory) 抛错也不崩，service 与 section 仍可用', () => {
+  const home = mkdtempSync(join(tmpdir(), 'persona-hub-wiring-'))
+  const prevHome = process.env.DSH_HOME
+  process.env.DSH_HOME = home
+  const { ctx: base, captured, dispose } = makeCtx()
+  // 模拟"鲸忆未安装/服务未就绪"：取可选服务直接抛错，本包必须 fail-open。
+  const ctx = { ...base, get(name) { if (name === 'whaleMemory') throw new Error('whale service unavailable'); return undefined } }
+  try {
+    apply(ctx, buildConfig(makeAssets()))
+    assert.ok(captured.service, '无鲸忆时 apply 仍须 provide personaHub')
+    const got = captured.service.resolvePersona({ source: 'dsh' })
+    assert.equal(got?.personaKey, 'bigfish', 'resolvePersona 不得依赖 whale 服务')
+    assert.match(captured.section.text({}), /大肥鱼/)
+  } finally {
+    dispose()
+    if (prevHome === undefined) delete process.env.DSH_HOME
+    else process.env.DSH_HOME = prevHome
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
 test('接线：/resolve 路由与 service 同口径（不再恒 null）', async () => {
   const home = mkdtempSync(join(tmpdir(), 'persona-hub-wiring-'))
   const prevHome = process.env.DSH_HOME

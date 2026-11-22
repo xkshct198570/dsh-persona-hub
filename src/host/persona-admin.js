@@ -7,13 +7,24 @@
  * - 写盘一律 tmp + fsync + rename；目录 0700、文件 0600。
  * - 删除只删用户副本；若某个 key 仍被 DSH/bots 引用，调用方需带 force 或先改配置。
  */
-import { accessSync, closeSync, constants, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeSync } from 'node:fs'
+import { accessSync, closeSync, constants, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import {
   KEY_RE, SHIPPED_PROMPTS_DIR, loadMeta, readPersona, resolveMetaPath, resolvePromptsDir,
 } from './persona-store.js'
+import { isEnabled } from './config-values.js'
 
 const MAX_TEXT = 200_000
+
+/** 路径按真实目标归一：symlink 指向出厂目录时也必须识别为只读。 */
+function canonicalDir(path) {
+  try { return realpathSync(path) } catch { return resolve(path) }
+}
+
+/** 用户目录指向插件出厂目录时禁止写删：否则面板能改坏/删掉随包发布的资产。 */
+function writesShippedDir(cfg) {
+  return canonicalDir(resolvePromptsDir(cfg)) === canonicalDir(SHIPPED_PROMPTS_DIR)
+}
 
 /** 读用户 meta（不带出厂合并），用于安全地追加/删除，不把出厂键复制进用户文件。 */
 function readUserMeta(cfg) {
@@ -79,6 +90,7 @@ export function importPersona(cfg, input) {
   const text = String(input?.text ?? '')
   if (!text.trim()) return { ok: false, error: 'empty_text' }
   if (text.length > MAX_TEXT) return { ok: false, error: 'text_too_large' }
+  if (writesShippedDir(cfg)) return { ok: false, error: 'assets_dir_shipped' }
 
   const dir = resolvePromptsDir(cfg)
   const target = join(dir, `${key}.txt`)
@@ -108,7 +120,7 @@ export function importPersona(cfg, input) {
 export function findPersonaUsage(config, key) {
   const k = String(key || '')
   const usages = []
-  if (config?.dsh?.enabled !== false && String(config?.dsh?.defaultPersona || '') === k) {
+  if (isEnabled(config?.dsh?.enabled) && String(config?.dsh?.defaultPersona || '') === k) {
     usages.push({ where: 'dsh.defaultPersona' })
   }
   for (const [botId, bot] of Object.entries(config?.bots || {})) {
@@ -131,6 +143,7 @@ export function findPersonaUsage(config, key) {
  */
 export function deletePersona(cfg, key, opts = {}) {
   if (!KEY_RE.test(String(key || ''))) return { ok: false, error: 'invalid_key' }
+  if (writesShippedDir(cfg)) return { ok: false, error: 'assets_dir_shipped' }
   const dir = resolvePromptsDir(cfg)
   const target = join(dir, `${key}.txt`)
   if (!existsSync(target)) {

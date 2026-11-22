@@ -181,6 +181,14 @@ test('纯逻辑 validateConfig：pollMs 越界与 platform=dsh 拦截', () => {
   assert.equal(p.validateConfig(tZh, { ...base, panel: { ...base.panel, pollMs: 1000 } }), dicts.zh['settings.pollInvalid'])
   const badBot = { ...base, bots: { '10001': { enabled: true, platform: 'dsh', private: {}, group: {} } } }
   assert.equal(p.validateConfig(tZh, badBot), dicts.zh['bots.platformInvalid'])
+  // 角色 key 与 Host 同规则：坏 key 保存前就拦住；空串＝该层不设，必须放行。
+  const badDefault = { ...base, dsh: { ...base.dsh, defaultPersona: 'Bad Key' } }
+  assert.equal(p.validateConfig(tZh, badDefault), dicts.zh['err.personaKeyInvalid'])
+  const badBinding = { ...base, bots: { '10001': { enabled: true, platform: 'qq',
+    private: { enabled: true, defaultPersona: '', bindings: { '2': '../x' } },
+    group: { enabled: true, defaultPersona: '', bindings: {} } } } }
+  assert.equal(p.validateConfig(tZh, badBinding), dicts.zh['err.personaKeyInvalid'])
+  assert.equal(p.validateConfig(tZh, { ...base, dsh: { ...base.dsh, defaultPersona: '' } }), '')
 })
 
 test('纯逻辑 personaOptions：英文用半角括号、缺资产带标记', () => {

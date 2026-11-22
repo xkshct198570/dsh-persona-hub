@@ -102,6 +102,7 @@ test('用户同名文件覆盖出厂资产，未覆盖的仍回退出厂', async
     const got = readPersona(cfg, 'bigfish')
     assert.equal(got.ok, true)
     assert.equal(got.text, '用户改写的大肥鱼人设')
+    assert.equal(got.chars, got.text.length, 'readPersona 必须回报字符数（/persona 预览用）')
     assert.equal(got.meta.name, '大肥鱼', 'meta 名称仍来自出厂 meta 合并')
 
     const list = listPersonas(cfg)

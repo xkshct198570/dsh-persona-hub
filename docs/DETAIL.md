@@ -1,7 +1,9 @@
-![人设路由中枢](preview.svg)
+![Persona routing hub](preview.svg)
 
-1. **一处配置、全平台人设**：网页端（DSH）与各平台机器人主体共用一套角色资产，按「主体 → 私聊/群聊 → 目标号」逐层回落，任一层关闭即返回 null（调用方兜底）。
-2. **面板可视化编辑**：角色列表与正文预览、导入/删除人设、网页端默认角色切换、主体/通道/特例绑定编辑；保存走宿主 configEditor，dsh/bots/panel 即时生效。
-3. **热重载与手工重读**：监听资产目录与 meta.json（150ms 防抖）；关闭监听后可在面板点「重新加载」清缓存重读，不用重启 DSH。
-4. **跨进程直读**：原子写 `$DSH_HOME/persona-hub/config.json`，Python 网关直接读配置与人设正文；DSH 不在线也不影响 QQ 端。
-5. **身份提示与只读诊断**：切网页端角色时给记忆中枢发身份提示（未安装则静默跳过）；面板显示资产目录实路径、可写状态与 11 条降级原因，只读本机文件、不联网、不写记忆库。
+One persona asset set serves the web client and each bot subject. Routing walks subject → private/group channel → target id and falls back at every layer; a disabled layer returns null so the caller can apply its own default.
+
+- **Panel editing** — persona list and body preview, import/delete, web default persona, bot/channel/target bindings; saves go through the host config editor and take effect without restarting.
+- **Hot reload** — watches the asset directory and `meta.json`; with watching off, a manual reload clears the cache and rereads the files.
+- **Cross-process mirror** — atomically writes `$DSH_HOME/persona-hub/config.json` for a Python gateway to read directly; the web host being offline does not affect the gateway.
+- **Identity hint** — switching the web persona sends a role hint to the installed memory hub and silently skips when that plugin is not installed.
+- **Local only** — reads local text files, makes no network request, and writes no memory rows.

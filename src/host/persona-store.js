@@ -23,7 +23,8 @@ const MAX_CHARS = 200_000
 const MAX_SOURCE_BYTES = MAX_CHARS * 4 // UTF-8 每字符最多 4 字节，超过即必然超字符上限
 const DEBOUNCE_MS = 150
 
-function dshHome() {
+/** DSH home：`$DSH_HOME` 优先，否则 `~/.dsh`。全包只此一处口径（镜像模块复用）。 */
+export function dshHome() {
   return process.env.DSH_HOME || join(homedir(), '.dsh')
 }
 
@@ -111,7 +112,7 @@ export function listPersonas(cfg = {}) {
 
 /**
  * 读取单角色正文。
- * @returns {{ok:true,key:string,text:string,meta:{name:string,avatar:string,description:string},mtime:number}
+ * @returns {{ok:true,key:string,chars:number,text:string,meta:{name:string,avatar:string,description:string},mtime:number}
  *          | {ok:false,error:'invalid_key'|'persona_missing'|'persona_too_large'|'persona_unreadable'}}
  */
 export function readPersona(cfg, key) {
@@ -145,6 +146,7 @@ export function readPersona(cfg, key) {
     return {
       ok: true,
       key: k,
+      chars: text.length,
       text,
       meta: { name: String(m.name || k), avatar: String(m.avatar || ''), description: String(m.description || '') },
       mtime: st.mtimeMs,

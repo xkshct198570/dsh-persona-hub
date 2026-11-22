@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 
 import { createRoutes } from '../src/host/routes.js'
 import { createResolver } from '../src/host/resolver.js'
-import { readPersona } from '../src/host/persona-store.js'
+import { readPersona, SHIPPED_PROMPTS_DIR } from '../src/host/persona-store.js'
 import { importPersona } from '../src/host/persona-admin.js'
 
 let server, base
@@ -57,6 +57,13 @@ test('resolve：dsh 命中 bigfish', async () => {
   const body = await res.json()
   assert.equal(body.ok, true)
   assert.equal(body.persona.personaKey, 'bigfish')
+})
+
+test('persona 预览：chars 是正文真实字符数（不再 undefined）', async () => {
+  const body = await (await fetch(base + '/persona-hub/api/persona?key=bigfish')).json()
+  assert.equal(body.ok, true)
+  assert.equal(typeof body.chars, 'number')
+  assert.equal(body.chars, body.text.length)
 })
 
 test('select：切到 aluna、保存配置并给记忆包发提示', async () => {
@@ -158,6 +165,19 @@ test('GET /config：panel 3 字段 + assets 2 字段（dir 空回真实路径）
   assert.equal(cfg.assets.writable, true)
 })
 
+test('GET /config：assets.dir 指到出厂目录 → 只读（is_shipped），不谎报可写', async () => {
+  const previous = config.assets.dir
+  config.assets.dir = SHIPPED_PROMPTS_DIR
+  try {
+    const cfg = (await (await fetch(base + '/persona-hub/api/config')).json()).config
+    assert.equal(cfg.assets.effectiveDir, SHIPPED_PROMPTS_DIR)
+    assert.equal(cfg.assets.writable, false)
+    assert.equal(cfg.assets.writeReason, 'is_shipped')
+  } finally {
+    config.assets.dir = previous
+  }
+})
+
 test('POST /config：5 个字段保存并回读一致（走 configEditor）', async () => {
   const next = {
     dsh: { enabled: true, defaultPersona: 'bigfish' },
@@ -228,6 +248,34 @@ test('POST /config：bot_id 允许 QQ 数字号；空格/保留平台/坏绑定�
   }
 })
 
+test('POST /config：dsh/通道默认角色必须是合法 persona key（空串＝未设放行）', async () => {
+  for (const defaultPersona of ['Bad Key', '../x', 'A']) {
+    const res = await fetch(base + '/persona-hub/api/config', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ config: { dsh: { enabled: true, defaultPersona }, bots: {} } }),
+    })
+    assert.equal(res.status, 400, defaultPersona)
+    assert.equal((await res.json()).error, 'invalid_config')
+  }
+  const bot = (defaultPersona) => ({ enabled: true, platform: 'qq',
+    private: { enabled: true, defaultPersona, bindings: {} },
+    group: { enabled: true, defaultPersona: '', bindings: {} } })
+  for (const defaultPersona of ['Bad Key', '../x', 'A']) {
+    const res = await fetch(base + '/persona-hub/api/config', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ config: { dsh: { enabled: true, defaultPersona: 'bigfish' }, bots: { '10001': bot(defaultPersona) } } }),
+    })
+    assert.equal(res.status, 400, defaultPersona)
+    assert.equal((await res.json()).error, 'invalid_bots')
+  }
+  // 空串是"该层未设"的合法值：必须能保存，并让 dsh 回到 bigfish 供后面的 /resolve 断言。
+  const ok = await fetch(base + '/persona-hub/api/config', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ config: { dsh: { enabled: true, defaultPersona: 'bigfish' }, bots: { '10001': bot('') } } }),
+  })
+  assert.equal(ok.status, 200)
+})
+
 test('GET /resolve：null 时带 reason/layer（与 explain 同源）；命中时 reason=ok', async () => {
   const miss = await (await fetch(base + '/persona-hub/api/resolve?source=qq&bot_id=999&chat_type=private')).json()
   assert.equal(miss.ok, true)
@@ -260,4 +308,31 @@ test('身份提示：网页端关闭时清旧提示、不发新提示', async ()
   const body = await res.json()
   assert.equal(body.memoryHinted, false)
   assert.equal(cleared.at(-1), true, 'dsh.enabled=false 必须 clearIdentityHint')
+})
+
+test('路由异常兜成 JSON 500：请求体迭代抛错不冒到 HTTP 层', async () => {
+  const handler = createRoutes({ config, hook, resolver: () => null, ctx })
+  const req = {
+    url: '/persona-hub/api/config',
+    method: 'POST',
+    socket: { remoteAddress: '127.0.0.1' },
+    headers: {},
+    [Symbol.asyncIterator]() {
+      return { next() { return Promise.reject(new Error('client aborted mid-body')) } }
+    },
+  }
+  const res = {
+    statusCode: 0,
+    headersSent: false,
+    writableEnded: false,
+    body: '',
+    setHeader() {},
+    end(chunk) { this.writableEnded = true; this.body = String(chunk) },
+  }
+  await handler(req, res)
+  assert.equal(res.statusCode, 500)
+  const body = JSON.parse(res.body)
+  assert.equal(body.ok, false)
+  assert.equal(body.error, 'internal_error')
+  assert.match(body.detail, /client aborted/)
 })

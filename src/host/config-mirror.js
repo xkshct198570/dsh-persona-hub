@@ -7,11 +7,7 @@
  */
 import { closeSync, fsyncSync, mkdirSync, openSync, renameSync, writeSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { homedir } from 'node:os'
-
-export function dshHome() {
-  return process.env.DSH_HOME || join(homedir(), '.dsh')
-}
+import { dshHome } from './persona-store.js'
 
 export function mirrorPath() {
   return join(dshHome(), 'persona-hub', 'config.json')

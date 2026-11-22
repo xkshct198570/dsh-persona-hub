@@ -12,7 +12,7 @@
  * 默认只回环（panel.allowRemote=true 才放行非回环）。写盘异常一律转 JSON，不静默失败。
  */
 import { isLoopback, readJson, sendJson } from './http-kit.js'
-import { dirname } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { listPersonas, readPersona, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './persona-store.js'
 import { importPersona, deletePersona, isUserPersona, checkDirWritable } from './persona-admin.js'
 import { writeConfigMirror } from './config-mirror.js'
@@ -30,9 +30,13 @@ const log = (line) => { try { console.log(line) } catch { /* noop */ } }
 /**
  * 切角色时给记忆中枢发身份提示（A 未装静默跳过）。
  * key 为空或网页端人设关闭时清掉旧提示，避免残留到下一个角色。
+ *
+ * whaleMemory 是可选跨包服务：本包必须能独立安装。服务读取、清提示、
+ * 设提示三处都 fail-open——任何异常都只算"没发提示"，绝不让保存或启动失败。
  */
 export function applyIdentityHint(ctx, key, { enabled = true } = {}) {
-  const svc = ctx?.get?.('whaleMemory')
+  let svc
+  try { svc = ctx?.get?.('whaleMemory') } catch { return false }
   if (!svc) return false
   const k = String(key || '').trim()
   if (!enabled || !k) {
@@ -42,8 +46,12 @@ export function applyIdentityHint(ctx, key, { enabled = true } = {}) {
     return false
   }
   if (typeof svc.setIdentityHint !== 'function') return false
-  svc.setIdentityHint(identityForPersona(k))
-  return true
+  try {
+    svc.setIdentityHint(identityForPersona(k))
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -85,9 +93,18 @@ export function createRoutes({ config, hook, resolver, ctx }) {
     return { ok: true, mirrorSynced }
   }
 
+  /** symlink 也要按真实目标判定出厂只读。 */
+  function canonicalDir(path) {
+    try { return realpathSync(path) } catch { return resolve(path) }
+  }
+
   function currentAssets() {
     const dir = String(value(config?.assets?.dir, '') || '')
     const effectiveDir = resolvePromptsDir(config)
+    // 指向插件出厂目录＝只读：导入/删除会改坏随包发布的资产（persona-admin 同口径拒绝）。
+    if (canonicalDir(effectiveDir) === canonicalDir(SHIPPED_PROMPTS_DIR)) {
+      return { dir, effectiveDir, watch: bool(config?.assets?.watch, true), writable: false, writeReason: 'is_shipped' }
+    }
     // 导入/删除同时写正文与 meta：两处都必须可写，面板才允许写操作。
     const promptsCheck = checkDirWritable(effectiveDir)
     const metaCheck = promptsCheck.ok === true ? checkDirWritable(dirname(resolveMetaPath(config))) : promptsCheck
@@ -110,7 +127,23 @@ export function createRoutes({ config, hook, resolver, ctx }) {
     }
   }
 
+  /**
+   * 路由总入口：单个请求的任何异常（客户端中断上传、磁盘/服务意外）都收敛成 JSON，
+   * 不让 async handler 的 rejection 冒到宿主 HTTP 层。已发响应则只收尾连接。
+   */
   return async function handle(req, res) {
+    try {
+      return await handleRequest(req, res)
+    } catch (err) {
+      log(`[persona-hub] route error: ${err?.message || 'error'}`)
+      if (!res.headersSent && !res.writableEnded) {
+        return sendJson(res, 500, { ok: false, error: 'internal_error', detail: String(err?.message || err) })
+      }
+      try { res.end() } catch { /* 连接已断 */ }
+    }
+  }
+
+  async function handleRequest(req, res) {
     if (!bool(config?.panel?.allowRemote, false) && !isLoopback(req.socket?.remoteAddress)) {
       return sendJson(res, 403, { ok: false, error: 'not_loopback' })
     }
@@ -170,7 +203,8 @@ export function createRoutes({ config, hook, resolver, ctx }) {
         return sendJson(res, 500, { ok: false, error: 'write_failed', detail: String(err?.message || err) })
       }
       if (!result.ok) {
-        const status = result.error === 'persona_in_use' || result.error === 'persona_shipped_immutable' ? 409
+        const status = result.error === 'persona_in_use' || result.error === 'persona_shipped_immutable'
+          || result.error === 'assets_dir_shipped' ? 409
           : result.error === 'invalid_key' ? 400
             : result.error === 'write_failed' ? 500 : 404
         return sendJson(res, status, result)
@@ -288,6 +322,9 @@ function normalizeDsh(next, current) {
     ? String(current?.defaultPersona || '')
     : next.defaultPersona
   if (typeof defaultPersona !== 'string' || defaultPersona.length > 128) return null
+  // 空＝该层未设（resolver 返回 default_persona_unset）；非空必须与 /select 同一条 key 规则，
+  // 否则能存进一个永远读不到资产的死配置。
+  if (defaultPersona && !KEY_RE.test(defaultPersona)) return null
   return { enabled, defaultPersona }
 }
 
@@ -327,6 +364,7 @@ function isValidBots(bots) {
       if (!isPlainObject(c)) return false
       if (c.enabled !== undefined && typeof c.enabled !== 'boolean') return false
       if (c.defaultPersona !== undefined && typeof c.defaultPersona !== 'string') return false
+      if (c.defaultPersona && !KEY_RE.test(c.defaultPersona)) return false
       if (c.bindings !== undefined) {
         if (!isPlainObject(c.bindings)) return false
         for (const [target, key] of Object.entries(c.bindings)) {

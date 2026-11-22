@@ -69,6 +69,11 @@ function createHarness() {
   const state = {
     failConfig: false,
     posts: [],
+    // 资产列表夹具；空态测试把它清空。
+    personas: [
+      { key: 'bigfish', name: '大肥鱼', avatar: '', chars: 100, origin: 'shipped', deletable: false },
+      { key: 'aluna', name: '阿罗娜', avatar: '', chars: 50, origin: 'user', deletable: true },
+    ],
     config: {
       dsh: { enabled: true, defaultPersona: 'bigfish' },
       bots: { 1127704268: { enabled: true, platform: 'qq',
@@ -85,10 +90,7 @@ function createHarness() {
       return json(200, { ok: true, memoryHinted: true, mirrorSynced: true })
     }
     if (url === '/persona-hub/api/personas') {
-      return json(200, { ok: true, items: [
-        { key: 'bigfish', name: '大肥鱼', avatar: '', chars: 100, origin: 'shipped', deletable: false },
-        { key: 'aluna', name: '阿罗娜', avatar: '', chars: 50, origin: 'user', deletable: true },
-      ], assets: state.config.assets })
+      return json(200, { ok: true, items: state.personas, assets: state.config.assets })
     }
     if (url === '/persona-hub/api/config') {
       return state.failConfig ? json(500, { ok: false, error: 'boom' }) : json(200, { ok: true, config: state.config })
@@ -245,5 +247,30 @@ test('面板渲染：重新加载、缺资产提示、加载失败重试', async
   await h.settle()
   assert.match(h.textOf(h.tree()), /加载失败：boom/, '错误态文案缺失')
   assert.ok(h.findByText(h.tree(), '重试'), '错误态应可重试')
+  } finally { h.dispose() }
+})
+
+test('面板空态：资产与主体都为空 + 资产目录指到出厂目录（只读原因如实显示）', async () => {
+  const h = createHarness()
+  try {
+    h.state.personas = []
+    h.state.config = {
+      dsh: { enabled: true, defaultPersona: '' },
+      bots: {},
+      assets: { dir: '', effectiveDir: '/pkg/personas/prompts', watch: false, writable: false, writeReason: 'is_shipped' },
+      panel: { allowRemote: false, pollMs: 60000, tab: 'personas' },
+    }
+    await h.settle()
+    let text = h.textOf(h.tree())
+    assert.ok(text.includes('资产为空。'), '角色页空态缺失')
+    assert.ok(text.includes('资产目录不可写（资产目录是插件出厂目录（只读））'), '只读原因未映射 is_shipped')
+    const importBtn = h.buttons(h.tree()).find((b) => b.children.some((c) => c.text === '导入人设'))
+    assert.ok(importBtn && importBtn.props.disabled, '出厂目录必须禁用导入')
+
+    h.findTab(h.tree(), '主体与通道').props.onClick()
+    await h.settle()
+    text = h.textOf(h.tree())
+    assert.ok(text.includes('还没有主体。在下面添加一个 bot id。'), '主体页空态缺失')
+    assert.ok(text.includes('暂无绑定，按默认角色处理。') === false, '无主体时不应出现通道绑定空态')
   } finally { h.dispose() }
 })

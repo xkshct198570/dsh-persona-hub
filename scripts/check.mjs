@@ -23,9 +23,29 @@ const patch = pkg.dsh?.bundle?.patch
 if (!existsSync(join(root, patch))) fail(`bundle patch 不存在：${patch}`)
 if (patch && !readFileSync(join(root, patch), 'utf8').includes('insert:')) fail('patch 必须含 insert 行')
 
+if (pkg.dsh?.client?.platform !== 'web') fail('dsh.client.platform 必须是 web（共享产物会被浏览器加载）')
+
+// 市场元数据：Plugin Manager 不激活插件也会读 locale 的 meta.title/description/detail。
+for (const lang of ['zh', 'en']) {
+  const file = join(root, 'locale', `${lang}.json`)
+  if (!existsSync(file)) { fail(`locale/${lang}.json 不存在`); continue }
+  let meta
+  try { meta = JSON.parse(readFileSync(file, 'utf8')).meta } catch (err) { fail(`locale/${lang}.json 不是合法 JSON：${err.message}`); continue }
+  for (const field of ['title', 'description']) {
+    if (!meta || typeof meta[field] !== 'string' || meta[field].trim() === '') fail(`locale/${lang}.json meta.${field} 必填非空`)
+  }
+  const detail = meta?.detail
+  if (typeof detail !== 'string' || !/^docs\/.+\.md$/.test(detail)) {
+    fail(`locale/${lang}.json meta.detail 必须形如 docs/<name>.md`)
+  } else if (!existsSync(join(root, detail))) fail(`meta.detail 指向的文档不存在：${detail}`)
+}
+
 for (const [name, target] of Object.entries(pkg.exports || {})) {
   if (!name.includes('*') && !existsSync(join(root, target))) fail(`exports ${name} -> ${target} 不存在`)
 }
+if (!pkg.exports?.['./client']) fail('exports 缺 ./client（浏览器产物入口）')
+if (!pkg.exports?.['./icon']) fail('exports 缺 ./icon（列表图标）')
+if (!pkg.exports?.['./locale/*.json']) fail('exports 缺 ./locale/*.json（市场元数据读取）')
 
 for (const f of pkg.files || []) {
   if (f.includes('*')) {
@@ -41,7 +61,7 @@ const FORBIDDEN = [
   new RegExp('feiyu' + '-mood'),
   new RegExp('/home' + '/hy', 'i'), new RegExp('ai-' + 'router', 'i'),
 ]
-const scanRoots = ['index.js', 'lib/client.js', 'locale', 'src']
+const scanRoots = ['index.js', 'lib/client.js', 'locale', 'src', 'docs', 'README.md']
 const walk = (p) => {
   if (!existsSync(p)) return []
   const st = statSync(p)

@@ -2,6 +2,10 @@
 
 ## 0.5.0 — 2026-11-22
 
+- 独立安装/共存加固：鲸忆 `whaleMemory` 服务全程可选（缺失/抛错 fail-open），identity hint 幂等重试；与鲸忆同时安装时 section/context、服务名、配置键无冲突。
+- 资产安全：`assets.dir` 指向包内 `personas/`（含 symlink）时只读，导入/删除返回 409，避免改坏随包资产。
+- 市场详情：`DETAIL.md`/`DETAIL.zh.md` 恢复功能说明 + 特性图双语版；测试 107、i18n 160 键。
+
 - 面板三页签（角色与资产 / 主体与通道 / 调试与设置）+「设置」卡承载 15 个字段中的非 bot 5 项（`assets.dir/watch`、`panel.allowRemote/pollMs/tab`），每项显示场景/默认/生效；`panel.pollMs` 真用于轮询、`panel.tab` 作初始页签。
 - 顶部「重新加载」入口：`POST /reload` 清缓存后再刷资产与预览（`assets.watch=false` 时的手工重读）。
 - 导入/删除写盘异常兜成 JSON `{ok:false,error:'write_failed',detail}`；只读目录在面板禁用导入/删除并显示原因。

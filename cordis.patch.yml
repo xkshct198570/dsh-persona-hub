@@ -1,4 +1,4 @@
-# S1 骨架：bundle 只插入本包一行。
+# bundle 只插入本包一行；config 由 Config schema 兜底默认值。
 - insert:
     - id: persona-hub
       name: dsh-persona-hub
