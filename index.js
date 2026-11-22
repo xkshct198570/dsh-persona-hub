@@ -13,7 +13,7 @@ import { createRoutes, PREFIX, applyIdentityHint } from './src/host/routes.js'
 import { installPersonaHook } from './src/host/hook.js'
 import { createResolver } from './src/host/resolver.js'
 import { bool } from './src/host/config-values.js'
-import { watchPersonas, listPersonas, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './src/host/persona-store.js'
+import { readPersona, watchPersonas, listPersonas, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './src/host/persona-store.js'
 import { writeConfigMirror } from './src/host/config-mirror.js'
 
 export { Config }
