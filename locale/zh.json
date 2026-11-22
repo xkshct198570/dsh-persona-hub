@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "人设路由中枢",
-    "description": "网页端与各平台机器人各用哪份人设：一处配置、逐层回落。只读本地人设文本（~/.dsh/persona-hub/prompts 与包内出厂资产），不联网、不写记忆库；另在 ~/.dsh/persona-hub/config.json 原子落一份配置供 Python 网关直读。关掉后网页端不再额外注入人设，QQ 端回落网关旧逻辑。",
+    "description": "全平台多主体人设路由中枢：网页端注入当前角色；QQ 等平台按「主体 × 私聊/群 × 目标」级联解析唯一人设。正文存 $DSH_HOME/persona-hub/prompts/<key>.txt，元数据存 meta.json；不发网络请求、不写记忆库。关掉插件＝网页端不再注入人设，资产保留。",
     "detail": "docs/DETAIL.md"
   },
   "act.close": "关闭",

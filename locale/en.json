@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Persona Routing Hub",
-    "description": "Choose which persona the web client and each platform bot uses: one config, layered fallback. Reads local persona text only (~/.dsh/persona-hub/prompts and the shipped assets), no network, no memory writes; also mirrors the config atomically to ~/.dsh/persona-hub/config.json for the Python gateway. Turned off, the web client injects no extra persona and QQ falls back to the gateway defaults.",
+    "description": "Multi-bot persona routing hub: injects the current persona on the web, and resolves one persona for other platforms by bot × private/group × target cascading. Texts live in $DSH_HOME/persona-hub/prompts/<key>.txt and metadata in meta.json; no network requests, no memory writes. Disabling the plugin stops web injection and keeps existing assets.",
     "detail": "docs/DETAIL.md"
   },
   "act.close": "Close",
