@@ -67,9 +67,9 @@ test('select：切到 aluna、保存配置并给记忆包发提示', async () =>
   const body = await res.json()
   assert.equal(body.ok, true)
   assert.equal(body.key, 'aluna')
-  assert.deepEqual(body.identityHint, { roleId: 'aluna', workspace: 'web' })
+  assert.deepEqual(body.identityHint, { roleId: 'aluna' })
   assert.equal(body.memoryHinted, true)
-  assert.deepEqual(hinted.at(-1), { roleId: 'aluna', workspace: 'web' })
+  assert.deepEqual(hinted.at(-1), { roleId: 'aluna' })
   assert.equal(saved.at(-1).dsh.defaultPersona, 'aluna')
 })
 
@@ -107,7 +107,7 @@ test('POST /config：保存多主体配置', async () => {
   assert.equal(saved.at(-1).bots['10001'].private.bindings['20002'], 'yiyi')
   const body = await res.json()
   assert.equal(body.memoryHinted, true)
-  assert.deepEqual(hinted.at(-1), { roleId: '', workspace: 'web' })
+  assert.deepEqual(hinted.at(-1), { roleId: '' })
 })
 
 
