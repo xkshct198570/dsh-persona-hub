@@ -71,10 +71,20 @@ function tryStat(path) {
   try { return statSync(path) } catch { return null }
 }
 
+/**
+ * 字符数一律按 Unicode 码点（Array.from 拆的是码点，不是 UTF-16 码元）。
+ * emoji/异体字占两个码元，`.length` 会虚高；`chars` 字段与 200k 上限都用这个口径。
+ * @param {string} text
+ * @returns {number}
+ */
+export function charCount(text) {
+  return Array.from(String(text ?? '')).length
+}
+
 /** 列表用字符数：超大文件不整读，按字节数近似（仅影响展示）。 */
 function countChars(path, st) {
   if (st.size > MAX_SOURCE_BYTES) return st.size
-  try { return readFileSync(path, 'utf8').replace(/^\uFEFF/, '').length } catch { return st.size }
+  try { return charCount(readFileSync(path, 'utf8').replace(/^\uFEFF/, '')) } catch { return st.size }
 }
 
 /** 用户 + 出厂合并列表；同名 key 用户优先；按 key 升序。 */
@@ -141,12 +151,13 @@ export function readPersona(cfg, key) {
       return { ok: false, error: 'persona_unreadable' }
     }
     text = text.replace(/^\uFEFF/, '')
-    if (text.length > max) return { ok: false, error: 'persona_too_large' }
+    const chars = charCount(text)
+    if (chars > max) return { ok: false, error: 'persona_too_large' }
     const m = loadMeta(cfg)[k] || {}
     return {
       ok: true,
       key: k,
-      chars: text.length,
+      chars,
       text,
       meta: { name: String(m.name || k), avatar: String(m.avatar || ''), description: String(m.description || '') },
       mtime: st.mtimeMs,
@@ -157,9 +168,12 @@ export function readPersona(cfg, key) {
 
 /**
  * 监听两个 prompts 目录 + meta 文件，150ms 防抖后回调。
+ * @param {any} cfg
+ * @param {Function} onChange
+ * @param {{watchFactory?: Function}} [opts] watchFactory 仅测试注入（统计安装/卸载次数）
  * @returns {() => void} dispose（幂等；关闭全部 watcher 并清定时器）
  */
-export function watchPersonas(cfg = {}, onChange) {
+export function watchPersonas(cfg = {}, onChange, { watchFactory = watch } = {}) {
   const empty = () => {}
   // assets.watch 是 .volatile() 字段（Ref）：必须 bool() 解包，不能直接比较对象。
   if (!bool(cfg?.assets?.watch, true)) return empty
@@ -182,7 +196,7 @@ export function watchPersonas(cfg = {}, onChange) {
 
   const addWatcher = (target, filter) => {
     try {
-      const w = watch(target, { persistent: true }, (event, filename) => {
+      const w = watchFactory(target, { persistent: true }, (event, filename) => {
         if (disposed) return
         if (filter && !filter(filename)) return
         bump()
@@ -214,5 +228,40 @@ export function watchPersonas(cfg = {}, onChange) {
       try { w.close() } catch { /* 已关闭 */ }
     }
     watchers.length = 0
+  }
+}
+
+/**
+ * 资产 watcher 的可重入管理：`reload()` 先卸后装（assets.dir 变更必须重挂），`dispose()` 卸载。
+ * 构造不安装——由调用方在 effect 里 reload()，避免同一句柄被装两次。
+ * @param {any} cfg 配置对象引用（重挂时按当前 assets.dir 读取）
+ * @param {Function} onChange 资产变化回调
+ * @param {{watchFactory?: Function}} [opts]
+ * @returns {{reload: () => boolean, dispose: () => void, active: boolean}}
+ */
+export function createPersonaWatcher(cfg, onChange, opts = {}) {
+  let off = null
+  let disposed = false
+
+  const uninstall = () => {
+    if (!off) return
+    const stop = off
+    off = null
+    try { stop() } catch { /* 已关闭 */ }
+  }
+
+  return {
+    reload() {
+      if (disposed) return false
+      uninstall()
+      off = watchPersonas(cfg, onChange, opts)
+      return true
+    },
+    dispose() {
+      if (disposed) return
+      disposed = true
+      uninstall()
+    },
+    get active() { return off !== null },
   }
 }

@@ -10,19 +10,36 @@
 import { accessSync, closeSync, constants, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import {
-  KEY_RE, SHIPPED_PROMPTS_DIR, loadMeta, readPersona, resolveMetaPath, resolvePromptsDir,
+  KEY_RE, SHIPPED_PROMPTS_DIR, charCount, loadMeta, readPersona, resolveMetaPath, resolvePromptsDir,
 } from './persona-store.js'
 import { isEnabled } from './config-values.js'
 
 const MAX_TEXT = 200_000
+const log = (line) => { try { console.log(line) } catch { /* noop */ } }
 
-/** 路径按真实目标归一：symlink 指向出厂目录时也必须识别为只读。 */
-function canonicalDir(path) {
-  try { return realpathSync(path) } catch { return resolve(path) }
+/**
+ * 路径按真实目标归一：symlink 指向出厂目录时也必须识别为只读。
+ * 只有 ENOENT（路径尚不存在）静默回落 resolve；其他错误（ENOTDIR/权限/循环链接）
+ * 不得静默吞掉——返回 resolve 但落日志，便于面板只读态排障。
+ * @param {string} path
+ * @returns {string}
+ */
+export function canonicalDir(path) {
+  try { return realpathSync(path) } catch (err) {
+    if (err?.code !== 'ENOENT') {
+      log(`[persona-hub] canonicalDir fallback (${err?.code || 'error'}): ${path}`)
+    }
+    return resolve(path)
+  }
 }
 
-/** 用户目录指向插件出厂目录时禁止写删：否则面板能改坏/删掉随包发布的资产。 */
-function writesShippedDir(cfg) {
+/**
+ * 用户目录是否指向插件出厂目录（只读）：routes 的 writable 判定复用这一处 realpath 口径，
+ * 禁止在路由里再留一份会被 ReferenceError 吞掉的本地副本。
+ * @param {any} cfg
+ * @returns {boolean}
+ */
+export function writesShippedDir(cfg) {
   return canonicalDir(resolvePromptsDir(cfg)) === canonicalDir(SHIPPED_PROMPTS_DIR)
 }
 
@@ -89,7 +106,8 @@ export function importPersona(cfg, input) {
   if (!KEY_RE.test(key)) return { ok: false, error: 'invalid_key' }
   const text = String(input?.text ?? '')
   if (!text.trim()) return { ok: false, error: 'empty_text' }
-  if (text.length > MAX_TEXT) return { ok: false, error: 'text_too_large' }
+  const chars = charCount(text)
+  if (chars > MAX_TEXT) return { ok: false, error: 'text_too_large' }
   if (writesShippedDir(cfg)) return { ok: false, error: 'assets_dir_shipped' }
 
   const dir = resolvePromptsDir(cfg)
@@ -113,7 +131,7 @@ export function importPersona(cfg, input) {
     ...(input?.description ? { description: String(input.description) } : {}),
   }
   atomicWrite(metaPath, JSON.stringify(meta, null, 2) + '\n')
-  return { ok: true, key, chars: text.length, origin: 'user' }
+  return { ok: true, key, chars, origin: 'user' }
 }
 
 /** 找出该 key 在 Config 里的引用（dsh 默认 / bot 默认 / 绑定）。 */

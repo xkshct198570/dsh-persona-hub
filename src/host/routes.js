@@ -9,12 +9,14 @@
  *   GET  /resolve                  调试：source/bot_id/chat_type/target_id → persona/reason/layer
  *   POST /reload                   清缓存（fs.watch=false 时的手工重读）
  *
- * 默认只回环（panel.allowRemote=true 才放行非回环）。写盘异常一律转 JSON，不静默失败。
+ * 默认只回环（panel.allowRemote=true 才放行读请求）。写请求（POST/DELETE）无论 allowRemote
+ * 如何都要求回环地址 + 本机 Host + 本机 Origin + POST application/json（checkWriteGate）。
+ * 写盘异常一律转 JSON，不静默失败。
  */
-import { isLoopback, readJson, sendJson } from './http-kit.js'
-import { dirname, resolve } from 'node:path'
+import { checkWriteGate, isLoopback, readJson, sendJson } from './http-kit.js'
+import { dirname } from 'node:path'
 import { listPersonas, readPersona, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './persona-store.js'
-import { importPersona, deletePersona, isUserPersona, checkDirWritable } from './persona-admin.js'
+import { importPersona, deletePersona, isUserPersona, checkDirWritable, writesShippedDir } from './persona-admin.js'
 import { writeConfigMirror } from './config-mirror.js'
 import { identityForPersona } from './role-map.js'
 import { bool, value, isEnabled } from './config-values.js'
@@ -28,36 +30,69 @@ const POLL_MAX = 600000
 const log = (line) => { try { console.log(line) } catch { /* noop */ } }
 
 /**
- * 切角色时给记忆中枢发身份提示（A 未装静默跳过）。
- * key 为空或网页端人设关闭时清掉旧提示，避免残留到下一个角色。
+ * 切角色时给记忆中枢发身份提示（A 未装静默跳过），返回结构化结果并落日志。
  *
- * whaleMemory 是可选跨包服务：本包必须能独立安装。服务读取、清提示、
- * 设提示三处都 fail-open——任何异常都只算"没发提示"，绝不让保存或启动失败。
+ * 三态（§4.5）：
+ * - 空 key / 网页端关闭 → `clearIdentityHint()`（清掉旧提示，别残留到下一个角色）；
+ * - 未知 persona → 必须 `clearIdentityHint()`，**不得** `setIdentityHint({roleId:''})`
+ *   ——后者会压掉鲸忆 Config 里手工设的 roleId（已实测）；
+ * - 登记项（含 bigfish→''）→ `setIdentityHint({roleId})`，bigfish 保留显式置空语义。
+ *
+ * whaleMemory 是可选跨包服务：本包必须能独立安装；取服务、设提示、清提示三处都 fail-open，
+ * 任何异常都只算"没发提示"，绝不让保存或启动失败。
+ *
+ * @param {any} ctx cordis 上下文
+ * @param {unknown} key persona key
+ * @param {{enabled?: boolean, log?: (line: string) => void}} [opts]
+ * @returns {{sent: boolean, reason: 'ok'|'no_service'|'no_method'|'not_enabled'|'empty_key'|'unknown_persona'|'set_failed'|'clear_failed'}}
  */
-export function applyIdentityHint(ctx, key, { enabled = true } = {}) {
+export function applyIdentityHint(ctx, key, { enabled = true, log: logFn = log } = {}) {
   let svc
-  try { svc = ctx?.get?.('whaleMemory') } catch { return false }
-  if (!svc) return false
-  const k = String(key || '').trim()
-  if (!enabled || !k) {
-    if (typeof svc.clearIdentityHint === 'function') {
-      try { svc.clearIdentityHint() } catch { /* 可选服务，异常不阻断保存 */ }
+  try { svc = ctx?.get?.('whaleMemory') } catch { svc = undefined }
+  if (!svc || (typeof svc !== 'object' && typeof svc !== 'function')) {
+    logFn(`[persona-hub] identity hint skipped: no_service key=${String(key ?? '')}`)
+    return { sent: false, reason: 'no_service' }
+  }
+
+  /** 清提示分支：reason 说明为什么没有新提示；清不掉按 no_method/clear_failed 记。 */
+  const clear = (reason) => {
+    if (typeof svc.clearIdentityHint !== 'function') {
+      logFn(`[persona-hub] identity hint clear skipped: no_method (${reason}) key=${String(key ?? '')}`)
+      return { sent: false, reason: 'no_method' }
     }
-    return false
+    try { svc.clearIdentityHint() } catch (err) {
+      logFn(`[persona-hub] identity hint clear failed (${reason}): ${err?.message || 'error'}`)
+      return { sent: false, reason: 'clear_failed' }
+    }
+    logFn(`[persona-hub] identity hint cleared: ${reason} key=${String(key ?? '')}`)
+    return { sent: false, reason }
   }
-  if (typeof svc.setIdentityHint !== 'function') return false
+
+  if (!enabled) return clear('not_enabled')
+  const k = String(key ?? '').trim()
+  if (!k) return clear('empty_key')
+  const hint = identityForPersona(k)
+  if (!hint) return clear('unknown_persona')
+
+  if (typeof svc.setIdentityHint !== 'function') {
+    logFn(`[persona-hub] identity hint skipped: no_method key=${k}`)
+    return { sent: false, reason: 'no_method' }
+  }
   try {
-    svc.setIdentityHint(identityForPersona(k))
-    return true
-  } catch {
-    return false
+    svc.setIdentityHint(hint)
+  } catch (err) {
+    logFn(`[persona-hub] identity hint set failed: ${err?.message || 'error'} key=${k}`)
+    return { sent: false, reason: 'set_failed' }
   }
+  logFn(`[persona-hub] identity hint sent: role=${hint.roleId || '(empty)'} key=${k}`)
+  return { sent: true, reason: 'ok' }
 }
 
 /**
- * @param {{ config: any, hook: any, resolver: Function, ctx: any }} deps
+ * @param {{ config: any, hook: any, resolver: Function, ctx: any, assetsWatcher?: any }} deps
+ *   assetsWatcher：可重入资产 watcher（createPersonaWatcher）；commitConfig 后按当前 assets.dir 重挂。
  */
-export function createRoutes({ config, hook, resolver, ctx }) {
+export function createRoutes({ config, hook, resolver, ctx, assetsWatcher }) {
   /** 保存 + 运行时对象就地更新 + 写跨进程镜像；镜像失败不否定已保存的配置。 */
   async function commitConfig(next) {
     const editor = ctx?.get?.('configEditor')
@@ -90,19 +125,21 @@ export function createRoutes({ config, hook, resolver, ctx }) {
       log(`[persona-hub] config mirror failed: ${err?.message || 'error'}`)
     }
     hook?.refresh?.()
+    // assets.dir / assets.watch 可能刚变更：按当前配置重挂 watcher（旧目录句柄先卸掉）。
+    try {
+      assetsWatcher?.reload?.()
+    } catch (err) {
+      log(`[persona-hub] assets watcher reattach failed: ${err?.message || 'error'}`)
+    }
     return { ok: true, mirrorSynced }
-  }
-
-  /** symlink 也要按真实目标判定出厂只读。 */
-  function canonicalDir(path) {
-    try { return realpathSync(path) } catch { return resolve(path) }
   }
 
   function currentAssets() {
     const dir = String(value(config?.assets?.dir, '') || '')
     const effectiveDir = resolvePromptsDir(config)
-    // 指向插件出厂目录＝只读：导入/删除会改坏随包发布的资产（persona-admin 同口径拒绝）。
-    if (canonicalDir(effectiveDir) === canonicalDir(SHIPPED_PROMPTS_DIR)) {
+    // 指向插件出厂目录（含 symlink 指向）＝只读：导入/删除会改坏随包发布的资产；
+    // realpath 判定只此一处（persona-admin 导出），路由不再留会被 ReferenceError 吞掉的副本。
+    if (writesShippedDir(config)) {
       return { dir, effectiveDir, watch: bool(config?.assets?.watch, true), writable: false, writeReason: 'is_shipped' }
     }
     // 导入/删除同时写正文与 meta：两处都必须可写，面板才允许写操作。
@@ -155,6 +192,16 @@ export function createRoutes({ config, hook, resolver, ctx }) {
     } catch {
       url = null
       path = ''
+    }
+
+    // 写闸（§4.5）：所有 POST/DELETE 在任何业务动作之前统一校验——回环地址、Host 本机、
+    // Origin 白名单、POST 必须 application/json。只判回环不构成 CSRF 防护，四者缺一不可。
+    if ((req.method === 'POST' || req.method === 'DELETE') && path.startsWith(`${PREFIX}/`)) {
+      const denied = checkWriteGate(req)
+      if (denied) {
+        log(`[persona-hub] write rejected: ${denied.error} ${req.method} ${path}`)
+        return sendJson(res, denied.status, { ok: false, error: denied.error })
+      }
     }
 
     if (path === `${PREFIX}/personas` && req.method === 'GET') {
@@ -239,7 +286,7 @@ export function createRoutes({ config, hook, resolver, ctx }) {
       const nextCfg = body.value?.config
       if (!isPlainObject(nextCfg)) return sendJson(res, 400, { ok: false, error: 'invalid_config' })
 
-      const dsh = normalizeDsh(nextCfg.dsh, config?.dsh)
+      const dsh = normalizeDsh(nextCfg.dsh, config?.dsh, config)
       if (!dsh) return sendJson(res, 400, { ok: false, error: 'invalid_config' })
       if (!isPlainObject(nextCfg.bots) || !isValidBots(nextCfg.bots)) {
         return sendJson(res, 400, { ok: false, error: 'invalid_bots' })
@@ -258,8 +305,10 @@ export function createRoutes({ config, hook, resolver, ctx }) {
 
       const saved = await commitConfig({ dsh, bots: nextCfg.bots, assets, panel })
       if (!saved.ok) return sendJson(res, 501, saved)
-      const hinted = applyIdentityHint(ctx, dsh.defaultPersona, { enabled: dsh.enabled })
-      return sendJson(res, 200, { ok: true, memoryHinted: hinted, mirrorSynced: saved.mirrorSynced })
+      const hint = applyIdentityHint(ctx, dsh.defaultPersona, { enabled: dsh.enabled })
+      return sendJson(res, 200, {
+        ok: true, memoryHinted: hint.sent, memoryHint: hint, mirrorSynced: saved.mirrorSynced,
+      })
     }
 
     if (path === `${PREFIX}/select` && req.method === 'POST') {
@@ -272,9 +321,14 @@ export function createRoutes({ config, hook, resolver, ctx }) {
       const nextCfg = { dsh: { ...(config?.dsh || {}), defaultPersona: key }, bots: structuredCloneSafe(config?.bots || {}) }
       const saved = await commitConfig(nextCfg)
       if (!saved.ok) return sendJson(res, 501, saved)
-      const hinted = applyIdentityHint(ctx, key, { enabled: isEnabled(config?.dsh?.enabled) })
+      const hint = applyIdentityHint(ctx, key, { enabled: isEnabled(config?.dsh?.enabled) })
       return sendJson(res, 200, {
-        ok: true, key, identityHint: identityForPersona(key), memoryHinted: hinted, mirrorSynced: saved.mirrorSynced,
+        ok: true,
+        key,
+        identityHint: identityForPersona(key),
+        memoryHinted: hint.sent,
+        memoryHint: hint,
+        mirrorSynced: saved.mirrorSynced,
       })
     }
 
@@ -314,17 +368,24 @@ function isPlainObject(v) {
   return Boolean(v) && typeof v === 'object' && !Array.isArray(v)
 }
 
-function normalizeDsh(next, current) {
+function normalizeDsh(next, current, cfg) {
   if (!isPlainObject(next)) return null
   const enabled = next.enabled === undefined ? isEnabled(current?.enabled) : next.enabled
   if (typeof enabled !== 'boolean') return null
   const defaultPersona = next.defaultPersona === undefined
     ? String(current?.defaultPersona || '')
     : next.defaultPersona
-  if (typeof defaultPersona !== 'string' || defaultPersona.length > 128) return null
+  if (typeof defaultPersona !== 'string' || Array.from(defaultPersona).length > 128) return null
   // 空＝该层未设（resolver 返回 default_persona_unset）；非空必须与 /select 同一条 key 规则，
   // 否则能存进一个永远读不到资产的死配置。
-  if (defaultPersona && !KEY_RE.test(defaultPersona)) return null
+  if (defaultPersona) {
+    if (!KEY_RE.test(defaultPersona)) return null
+    // 资产必须真实可读：读不到的死 key 不许落库（面板标红之外，保存入口自己先拒）。
+    if (!readPersona(cfg, defaultPersona).ok) {
+      log(`[persona-hub] config rejected: dsh.defaultPersona asset missing key=${defaultPersona}`)
+      return null
+    }
+  }
   return { enabled, defaultPersona }
 }
 

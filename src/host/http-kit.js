@@ -1,9 +1,73 @@
-/** persona-hub 的 HTTP 小件（回环/JSON/上限）。与记忆包各自实现，避免跨包依赖。 */
+/** persona-hub 的 HTTP 小件（回环/JSON/上限/写闸）。与记忆包各自实现，避免跨包依赖。 */
 import { Buffer } from 'node:buffer'
+
+/** 本机回环主机名（HTTP Host / Origin 白名单）。IPv6 在 URL 里带方括号，两种写法都收。 */
+const LOCAL_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]', '::1'])
+const LOCAL_SCHEMES = new Set(['http:', 'https:'])
 
 export function isLoopback(addr) {
   if (!addr) return false
   return addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1' || addr.startsWith('127.')
+}
+
+function headerString(req, name) {
+  const raw = req?.headers?.[name]
+  return Array.isArray(raw) ? raw[0] : raw
+}
+
+function isLocalHostname(hostname) {
+  return LOCAL_HOSTNAMES.has(String(hostname || '').toLowerCase())
+}
+
+/**
+ * Origin 白名单：空 Origin 放行（curl/同机非浏览器）；否则必须是本机 http(s) 源。
+ * 带 userinfo、其他 scheme、畸形串一律拒绝——CSRF 页面会带真实 Origin，不能只靠回环地址。
+ * @param {unknown} origin Origin 头原值
+ * @returns {boolean}
+ */
+export function isLocalOrigin(origin) {
+  const raw = String(origin ?? '').trim()
+  if (!raw) return true
+  let url
+  try { url = new URL(raw) } catch { return false }
+  if (!LOCAL_SCHEMES.has(url.protocol)) return false
+  if (url.username || url.password) return false
+  return isLocalHostname(url.hostname)
+}
+
+/**
+ * Host 头校验（防 DNS rebinding）：缺省/空串放行（curl 历史行为），
+ * 非空则必须解析成本机主机名；`[evil`、`[]`、`:8080` 等畸形串直接拒绝。
+ * @param {unknown} host Host 头原值
+ * @returns {boolean}
+ */
+export function isLocalHostHeader(host) {
+  const raw = String(host ?? '').trim()
+  if (!raw) return true
+  let url
+  try { url = new URL(`http://${raw}`) } catch { return false }
+  return isLocalHostname(url.hostname)
+}
+
+/** 写方法的 Content-Type 必须是 JSON（接受 application/json 与 +json 后缀）。 */
+export function isJsonContentType(req) {
+  const media = String(headerString(req, 'content-type') ?? '').split(';')[0].trim().toLowerCase()
+  return media === 'application/json' || media.endsWith('+json')
+}
+
+/**
+ * persona 写入口三合一闸（所有 POST/DELETE 业务前调用）：
+ * 回环地址 + Host 本机 + Origin 白名单 + POST 必须 application/json。
+ * DELETE 允许无 body/无 Content-Type（浏览器 DELETE 不带简单请求体），但仍查 Host/Origin。
+ * @param {{method?:string,headers?:Record<string,unknown>,socket?:{remoteAddress?:string}}} req
+ * @returns {null | {status:number,error:'not_loopback'|'bad_host'|'cross_origin'|'unsupported_media_type'}}
+ */
+export function checkWriteGate(req) {
+  if (!isLoopback(req?.socket?.remoteAddress)) return { status: 403, error: 'not_loopback' }
+  if (!isLocalHostHeader(headerString(req, 'host'))) return { status: 403, error: 'bad_host' }
+  if (!isLocalOrigin(headerString(req, 'origin'))) return { status: 403, error: 'cross_origin' }
+  if (req?.method !== 'DELETE' && !isJsonContentType(req)) return { status: 415, error: 'unsupported_media_type' }
+  return null
 }
 
 export function sendJson(res, status, body) {

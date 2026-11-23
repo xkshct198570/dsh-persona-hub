@@ -12,8 +12,8 @@ import { Config } from './src/host/config.js'
 import { createRoutes, PREFIX, applyIdentityHint } from './src/host/routes.js'
 import { installPersonaHook } from './src/host/hook.js'
 import { createResolver } from './src/host/resolver.js'
-import { bool, isEnabled } from './src/host/config-values.js'
-import { readPersona, watchPersonas, listPersonas, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './src/host/persona-store.js'
+import { isEnabled } from './src/host/config-values.js'
+import { readPersona, createPersonaWatcher, listPersonas, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './src/host/persona-store.js'
 import { writeConfigMirror } from './src/host/config-mirror.js'
 
 export { Config }
@@ -22,7 +22,17 @@ export const inject = ['webServer', 'systemPrompt']
 const log = (line) => { try { console.log(line) } catch { /* noop */ } }
 
 export function apply(ctx, config) {
-  const hook = installPersonaHook(ctx, { config, log })
+  // 启动瞬间 A（鲸忆）可能还没挂载：先试一次。失败时由 hook 首次 assemble 幂等补发一次。
+  let initialHintSent = false
+  const hook = installPersonaHook(ctx, {
+    config,
+    log,
+    onFirstAssemble() {
+      if (initialHintSent) return
+      const hint = applyIdentityHint(ctx, hook.activeKey(), { enabled: isEnabled(config?.dsh?.enabled) })
+      log(`[persona-hub] identity hint bootstrap: sent=${hint.sent} reason=${hint.reason}`)
+    },
+  })
   const resolver = createResolver({ config, store: { readPersona: (cfg, key) => readPersona(cfg, key) } })
 
   // 对外 Service：B/网关/其他插件只走这一处；C 内部实现可换。
@@ -34,13 +44,15 @@ export function apply(ctx, config) {
     listPersonas: () => listPersonas(config),
   })
 
-  const handler = createRoutes({ config, hook, resolver, ctx })
-  ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: PREFIX, handler }), 'persona-hub: routes')
+  // 资产热重载：可重入 watcher。POST /config 改 assets.dir/watch 后由 commitConfig 重挂。
+  const assetsWatcher = createPersonaWatcher(config, () => hook.refresh())
+  ctx.effect(() => {
+    assetsWatcher.reload()
+    return () => assetsWatcher.dispose()
+  }, 'persona-hub: assets watch')
 
-  // 资产热重载：文本/meta 一变，下一轮 assemble 即用新内容。
-  if (bool(config?.assets?.watch, true)) {
-    ctx.effect(() => watchPersonas(config, () => hook.refresh()), 'persona-hub: assets watch')
-  }
+  const handler = createRoutes({ config, hook, resolver, ctx, assetsWatcher })
+  ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: PREFIX, handler }), 'persona-hub: routes')
 
   // 跨进程稳定文件：Python 网关只读这里；原子写，DSH 崩了也不影响 QQ 端。
   try {
@@ -54,12 +66,7 @@ export function apply(ctx, config) {
     log(`[persona-hub] config mirror failed: ${err?.message || 'error'}`)
   }
 
-  const hinted = applyIdentityHint(ctx, hook.activeKey(), { enabled: isEnabled(config?.dsh?.enabled) })
-  // A 若在本包之后挂载，启动瞬间取不到 service：1.5s 后重试一次（effect 管理，dispose 即清）。
-  ctx.effect(() => {
-    const timer = setTimeout(() => { applyIdentityHint(ctx, hook.activeKey(), { enabled: isEnabled(config?.dsh?.enabled) }) }, 1500)
-    return () => clearTimeout(timer)
-  }, 'persona-hub: identity hint retry')
-
-  log(`[persona-hub] armed dsh=${hook.activeKey()} dshEnabled=${isEnabled(config?.dsh?.enabled)} bots=${Object.keys(config?.bots || {}).length} memoryHint=${hinted}`)
+  const initialHint = applyIdentityHint(ctx, hook.activeKey(), { enabled: isEnabled(config?.dsh?.enabled) })
+  initialHintSent = initialHint.sent
+  log(`[persona-hub] armed dsh=${hook.activeKey()} dshEnabled=${isEnabled(config?.dsh?.enabled)} bots=${Object.keys(config?.bots || {}).length} memoryHint=${initialHint.sent}/${initialHint.reason}`)
 }

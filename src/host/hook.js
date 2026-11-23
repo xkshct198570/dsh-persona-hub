@@ -6,6 +6,8 @@
  * 读失败保留上一次成功快照（§12.4.5）；只有从未成功读过才返回空串。
  * subagent：会话元数据 origin='subagent' 时跳过（唯一真实信号是 `agents.currentInitiator()`
  * 返回的 Agent 的 session header；AssembleContext 本身不带会话信息）。
+ * 身份提示补发：首次 assemble（section.text 被宿主求值）时调用一次 `onFirstAssemble`，
+ * latch 保证只发一次；disposed 后不再发。这是补发主路径，不是安装后的固定定时器。
  * 生命周期：注册与缓存清理都由 ctx.effect 的 disposer 接管。
  */
 import { readPersona } from './persona-store.js'
@@ -15,10 +17,26 @@ export const SECTION_NAME = 'persona-hub:persona'
 export const SECTION_ORDER = 10
 const CACHE_TTL_MS = 2000
 
-export function installPersonaHook(ctx, { config, log = () => {}, cacheTtlMs } = {}) {
+/**
+ * @param {any} ctx
+ * @param {{config:any, log?:(line:string)=>void, cacheTtlMs?:number, onFirstAssemble?:()=>void}} opts
+ *   onFirstAssemble：首次 section.text 求值时调用一次的补发钩子（失败只落日志，不阻断注入）。
+ */
+export function installPersonaHook(ctx, { config, log = () => {}, cacheTtlMs, onFirstAssemble } = {}) {
   const cache = { key: '', text: '', exp: 0, mtime: 0 }
   let disposed = false
+  let firstAssembleFired = false
   const ttl = Number.isFinite(cacheTtlMs) && cacheTtlMs > 0 ? cacheTtlMs : CACHE_TTL_MS
+
+  /** 幂等补发：宿主第一次求值 section 时触发一次；disposed 不再发。 */
+  const fireFirstAssemble = () => {
+    if (firstAssembleFired || disposed) return
+    firstAssembleFired = true
+    if (typeof onFirstAssemble !== 'function') return
+    try { onFirstAssemble() } catch (err) {
+      log(`[persona-hub] identity hint bootstrap failed: ${err?.message || 'error'}`)
+    }
+  }
 
   // 空 key 不回退出厂角色：resolver 对同一配置返回 null(default_persona_unset)，两端必须同口径。
   const resolveKey = () => String(config?.dsh?.defaultPersona || '')
@@ -37,6 +55,7 @@ export function installPersonaHook(ctx, { config, log = () => {}, cacheTtlMs } =
   }
 
   const resolveText = () => {
+    fireFirstAssemble()
     try {
       if (disposed || !isEnabled(config?.dsh?.enabled)) return ''
       if (isSubagentAssembly()) return ''

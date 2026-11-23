@@ -119,7 +119,9 @@ test('POST /config：保存多主体配置', async () => {
 
 
 test('POST /reload：200（fs.watch=false 时的手工重读入口）', async () => {
-  const res = await fetch(base + '/persona-hub/api/reload', { method: 'POST' })
+  const res = await fetch(base + '/persona-hub/api/reload', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+  })
   assert.equal(res.status, 200)
   const body = await res.json()
   assert.equal(body.ok, true)
@@ -316,7 +318,7 @@ test('路由异常兜成 JSON 500：请求体迭代抛错不冒到 HTTP 层', as
     url: '/persona-hub/api/config',
     method: 'POST',
     socket: { remoteAddress: '127.0.0.1' },
-    headers: {},
+    headers: { 'content-type': 'application/json' },
     [Symbol.asyncIterator]() {
       return { next() { return Promise.reject(new Error('client aborted mid-body')) } }
     },

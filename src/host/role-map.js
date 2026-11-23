@@ -14,10 +14,16 @@ export const PERSONA_ROLE_IDS = {
   yiyi: 'yiyi',
 }
 
-/** @param {string} key @returns {{ roleId: string }} */
+/**
+ * 未知 persona 必须返回 null：调用方据此走 `clearIdentityHint()`。
+ * 返回 `{roleId:''}` 会让鲸忆把 Config 里手工设的 roleId 压掉（已实测），三态必须分清：
+ * `undefined`＝不改、`''`＝显式清、未知 key＝不属于人设域名。
+ *
+ * @param {unknown} key persona key
+ * @returns {{ roleId: string } | null} 登记项返回提示；未登记返回 null
+ */
 export function identityForPersona(key) {
-  const roleId = Object.prototype.hasOwnProperty.call(PERSONA_ROLE_IDS, String(key))
-    ? PERSONA_ROLE_IDS[String(key)]
-    : ''
-  return { roleId }
+  const k = String(key ?? '')
+  if (!Object.prototype.hasOwnProperty.call(PERSONA_ROLE_IDS, k)) return null
+  return { roleId: PERSONA_ROLE_IDS[k] }
 }
