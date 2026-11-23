@@ -293,3 +293,19 @@ test('缺文件 / BOM 剥离 / 默认路径 / watch 开关关闭', async () => {
     assert.equal(fired, 0)
   })
 })
+
+test('meta 缓存：文件改写后 loadMeta 必须重读（mtime/size 失效判据），坏 JSON 不缓存成旧值', async () => {
+  await withTempHome(async (home) => {
+    const metaPath = userMeta(home)
+    mkdirSync(join(home, 'persona-hub'), { recursive: true })
+    writeFileSync(metaPath, JSON.stringify({ bigfish: { name: '缓存前' } }), 'utf8')
+    assert.equal(loadMeta(cfgFor(home)).bigfish.name, '缓存前')
+
+    writeFileSync(metaPath, JSON.stringify({ bigfish: { name: '缓存后-更长的新名字' } }), 'utf8')
+    assert.equal(loadMeta(cfgFor(home)).bigfish.name, '缓存后-更长的新名字')
+
+    // 坏 JSON 的缓存值也必须是「空表」，不能把上一份好数据当现行值继续用。
+    writeFileSync(metaPath, '{ broken', 'utf8')
+    assert.equal(loadMeta(cfgFor(home)).bigfish.name, '大肥鱼', '坏 JSON 时回退出厂 meta')
+  })
+})

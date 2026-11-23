@@ -4,7 +4,7 @@
 
 One persona asset set for the DeepSeek Harness web client and for every bot subject. Routing walks **subject → private/group channel → target id** and falls back one layer at a time; a disabled layer returns `null` so the caller can apply its own default. Local text only — no network requests, no memory writes.
 
-> Current version **0.5.0**. DSH `>=0.2.2-rc.5 <0.3.0`, Node `>=22.5`. Web client only.
+> Current version **0.5.2**. DSH `>=0.2.2-rc.5 <0.3.0`, Node `>=22.5`. Web client only.
 
 ## Install
 

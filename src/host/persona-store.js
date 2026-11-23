@@ -41,6 +41,13 @@ export function resolveMetaPath(cfg = {}) {
   return join(dshHome(), 'persona-hub', 'meta.json')
 }
 
+/**
+ * meta 解析缓存：hook 每轮都要读角色名/描述，两次 parseMetaFile 是纯浪费。
+ * 以 mtimeMs + size 做失效判据：文件被改（含面板保存）一定换 mtime；读到坏 JSON 也缓存空表，
+ * 避免坏文件每轮重复解析。缓存只是加速，不改变“坏 JSON → 忽略”的语义。
+ */
+const metaFileCache = new Map()
+
 /** 解析单个 meta 文件；坏 JSON / 坏条目一律忽略，返回已解析部分。 */
 function parseMetaFile(path) {
   let raw
@@ -62,9 +69,20 @@ function parseMetaFile(path) {
   return out
 }
 
+/** 带缓存的 meta 解析：mtime+size 不变直接复用上次结果。 */
+function parseMetaFileCached(path) {
+  let st
+  try { st = statSync(path) } catch { return {} }
+  const cached = metaFileCache.get(path)
+  if (cached && cached.mtimeMs === st.mtimeMs && cached.size === st.size) return cached.value
+  const value = parseMetaFile(path)
+  metaFileCache.set(path, { mtimeMs: st.mtimeMs, size: st.size, value })
+  return value
+}
+
 /** shipped meta + 用户 meta；同名 key 整体以用户条目为准。 */
 export function loadMeta(cfg = {}) {
-  return { ...parseMetaFile(SHIPPED_META_PATH), ...parseMetaFile(resolveMetaPath(cfg)) }
+  return { ...parseMetaFileCached(SHIPPED_META_PATH), ...parseMetaFileCached(resolveMetaPath(cfg)) }
 }
 
 function tryStat(path) {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.2 — 2026-11-24（未发布 · R11 性能与终审）
+
+- `loadMeta` 增 mtime+size 缓存：hook 每轮读角色名/描述不再重复解析出厂 meta 与用户 meta；文件改写后按 mtime/size 自动失效，坏 JSON 仍整体忽略回退出厂值。
+- 测试 145（145 pass / 0 fail）：新增 meta 缓存失效回归（改写/坏 JSON 两条路径）。
+
 ## 0.5.1 — 2026-11-24（未发布 · R10 安全与稳定性）
 
 - 读接口也过 Host/Origin 闸：伪造 Host（DNS rebinding）返回 403 `bad_host`，不再能同源读走人设正文/配置。
