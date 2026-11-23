@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1 — 2026-11-24（未发布 · R10 安全与稳定性）
+
+- 读接口也过 Host/Origin 闸：伪造 Host（DNS rebinding）返回 403 `bad_host`，不再能同源读走人设正文/配置。
+- `panel.allowRemote` 只额外放行 `webServer.host` 绑定地址；其他外部 Host/Origin 仍拒绝。
+- 配置保存保留 cosmokit Volatile Ref 引用身份（`assets.watch` 等宿主后续 volatile 更新不再静默失效）。
+- 回归测试：伪造 Host/绑定地址白名单/Origin/IPv6 归一/Ref 保留。
+
+
 ## 0.5.0 — 2026-11-22
 
 - 独立安装/共存加固：鲸忆 `whaleMemory` 服务全程可选（缺失/抛错 fail-open），identity hint 幂等重试；与鲸忆同时安装时 section/context、服务名、配置键无冲突。

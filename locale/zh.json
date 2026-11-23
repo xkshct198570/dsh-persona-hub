@@ -142,7 +142,7 @@
   "res.target": "目标号",
   "res.title": "路由调试",
   "settings.allowRemote": "允许远程访问",
-  "settings.allowRemoteDesc": "允许非回环地址访问 /persona-hub/api/*（默认只允许本机）。",
+  "settings.allowRemoteDesc": "允许非回环地址读 /persona-hub/api/*；只额外放行 webServer 绑定地址（默认只允许本机）。",
   "settings.defaultLabel": "默认",
   "settings.dirDefault": "默认：$DSH_HOME/persona-hub/prompts",
   "settings.dirDesc": "人设正文目录；留空使用默认目录。",

@@ -19,6 +19,50 @@ function isLocalHostname(hostname) {
   return LOCAL_HOSTNAMES.has(String(hostname || '').toLowerCase())
 }
 
+/** 绑定地址字面量归一（IPv6 去括号/小写）。 */
+function normalizeBindHost(value) {
+  const raw = String(value ?? '').trim().toLowerCase()
+  if (!raw) return ''
+  if (raw.startsWith('[') && raw.endsWith(']')) return raw.slice(1, -1)
+  return raw
+}
+
+/**
+ * Host 白名单：本机名恒放行；allowRemote 时额外放行 webServer 实际绑定地址。
+ * 读请求也必须过这一关——旧实现只有写闸校验 Host，读接口可被 DNS rebinding 页面
+ * 以同源方式读走全部人设正文/配置（实测 Host: evil.example 返回 200）。
+ *
+ * @param {unknown} host Host 头原值
+ * @param {string[]} [boundHosts]
+ * @returns {boolean}
+ */
+export function isAllowedHost(host, boundHosts = []) {
+  const raw = String(host ?? '').trim()
+  if (!raw) return true
+  let url
+  try { url = new URL(`http://${raw}`) } catch { return false }
+  const name = String(url.hostname).toLowerCase().replace(/^\[|\]$/g, '')
+  if (isLocalHostname(name)) return true
+  return boundHosts.map(normalizeBindHost).filter(Boolean).includes(name)
+}
+
+/**
+ * Origin 白名单（allowRemote 版）：本机源 + 绑定地址源；带 userinfo/其他 scheme 一律拒绝。
+ * @param {unknown} origin @param {string[]} [boundHosts]
+ * @returns {boolean}
+ */
+export function isAllowedOrigin(origin, boundHosts = []) {
+  const raw = String(origin ?? '').trim()
+  if (!raw) return true
+  let url
+  try { url = new URL(raw) } catch { return false }
+  if (!LOCAL_SCHEMES.has(url.protocol)) return false
+  if (url.username || url.password) return false
+  const name = String(url.hostname).toLowerCase().replace(/^\[|\]$/g, '')
+  if (isLocalHostname(name)) return true
+  return boundHosts.map(normalizeBindHost).filter(Boolean).includes(name)
+}
+
 /**
  * Origin 白名单：空 Origin 放行（curl/同机非浏览器）；否则必须是本机 http(s) 源。
  * 带 userinfo、其他 scheme、畸形串一律拒绝——CSRF 页面会带真实 Origin，不能只靠回环地址。

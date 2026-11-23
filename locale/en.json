@@ -142,7 +142,7 @@
   "res.target": "Target id",
   "res.title": "Routing debug",
   "settings.allowRemote": "Allow remote access",
-  "settings.allowRemoteDesc": "Allow non-loopback access to /persona-hub/api/* (loopback only by default).",
+  "settings.allowRemoteDesc": "Allow non-loopback reads of /persona-hub/api/*; only the webServer.host bind address is additionally allowed (loopback only by default).",
   "settings.defaultLabel": "Default",
   "settings.dirDefault": "Default: $DSH_HOME/persona-hub/prompts",
   "settings.dirDesc": "Persona text directory; leave empty to use the default directory.",

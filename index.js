@@ -37,7 +37,7 @@ export function apply(ctx, config) {
 
   // 对外 Service：B/网关/其他插件只走这一处；C 内部实现可换。
   ctx.provide('personaHub', {
-    version: '0.5.0',
+    version: '0.5.1',
     resolvePersona: resolver,
     explainResolve: (q) => (typeof resolver.explain === 'function' ? resolver.explain(q) : { persona: null, reason: 'resolve_error', layer: 'entry' }),
     getPersona: (key) => readPersona(config, key),

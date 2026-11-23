@@ -40,7 +40,7 @@
 | `bots.<id>.group.bindings` | `{}` | `target_id → persona key` | 即时 |
 | `assets.dir` | `''` | 人设正文目录；空＝`$DSH_HOME/persona-hub/prompts` | 重挂 |
 | `assets.watch` | `true` | 监听资产目录与 meta；关＝只在点「重新加载」时重读 | 重挂 |
-| `panel.allowRemote` | `false` | 允许非回环地址访问 `/persona-hub/api/*`（默认只允许本机） | 即时 |
+| `panel.allowRemote` | `false` | 允许非回环地址**读** `/persona-hub/api/*`；只额外放行 `webServer.host` 绑定地址（默认只允许本机） | 即时 |
 | `panel.pollMs` | `60000` | 面板自动刷新间隔（5000–600000 毫秒） | 即时 |
 | `panel.tab` | `'personas'` | 面板打开时的默认页签（`personas`/`bots`/`debug`） | 即时 |
 

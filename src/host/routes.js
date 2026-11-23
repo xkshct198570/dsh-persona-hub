@@ -13,13 +13,13 @@
  * 如何都要求回环地址 + 本机 Host + 本机 Origin + POST application/json（checkWriteGate）。
  * 写盘异常一律转 JSON，不静默失败。
  */
-import { checkWriteGate, isLoopback, readJson, sendJson } from './http-kit.js'
+import { checkWriteGate, isAllowedHost, isAllowedOrigin, isLoopback, readJson, sendJson } from './http-kit.js'
 import { dirname } from 'node:path'
 import { listPersonas, readPersona, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './persona-store.js'
 import { importPersona, deletePersona, isUserPersona, checkDirWritable, writesShippedDir } from './persona-admin.js'
 import { writeConfigMirror } from './config-mirror.js'
 import { identityForPersona } from './role-map.js'
-import { bool, value, isEnabled } from './config-values.js'
+import { bool, mergePreservingVolatile, value, isEnabled } from './config-values.js'
 
 const PREFIX = '/persona-hub/api'
 export const PANEL_TABS = ['personas', 'bots', 'debug']
@@ -107,11 +107,12 @@ export function createRoutes({ config, hook, resolver, ctx, assetsWatcher }) {
     } catch (err) {
       return { ok: false, error: 'config_save_failed', detail: String(err?.message || err) }
     }
-    // 面板不用等插件重挂才生效：dsh/bots/panel 即时，assets.* 的重挂语义由面板标注。
+    // 面板不用等插件重挂才生效：dsh/bots 整组替换（删除语义），assets/panel 叶子合并并保 Ref。
+    // 不保 Ref 会让宿主后续 volatile-only 更新静默失效（审计 P1-15）。
     config.dsh = next.dsh
     config.bots = next.bots
-    if (next.assets) config.assets = { ...(isPlainObject(config.assets) ? config.assets : {}), ...next.assets }
-    if (next.panel) config.panel = { ...(isPlainObject(config.panel) ? config.panel : {}), ...next.panel }
+    if (next.assets) config.assets = mergePreservingVolatile(isPlainObject(config.assets) ? config.assets : {}, next.assets)
+    if (next.panel) config.panel = mergePreservingVolatile(isPlainObject(config.panel) ? config.panel : {}, next.panel)
 
     let mirrorSynced = true
     try {
@@ -180,7 +181,24 @@ export function createRoutes({ config, hook, resolver, ctx, assetsWatcher }) {
     }
   }
 
+  /** allowRemote 时的绑定地址白名单；读不到绑定地址就只认回环。 */
+  function boundHosts() {
+    if (!bool(config?.panel?.allowRemote, false)) return []
+    try {
+      const host = ctx?.webServer?.host
+      return typeof host === 'string' && host.trim() ? [host.trim()] : []
+    } catch { return [] }
+  }
+
   async function handleRequest(req, res) {
+    const extraHosts = boundHosts()
+    // Host/Origin 覆盖所有方法（含读）：DNS rebinding 页面会带外部 Host 做同源读取。
+    if (!isAllowedHost(req.headers?.host, extraHosts)) {
+      return sendJson(res, 403, { ok: false, error: 'bad_host' })
+    }
+    if (!isAllowedOrigin(req.headers?.origin, extraHosts)) {
+      return sendJson(res, 403, { ok: false, error: 'cross_origin' })
+    }
     if (!bool(config?.panel?.allowRemote, false) && !isLoopback(req.socket?.remoteAddress)) {
       return sendJson(res, 403, { ok: false, error: 'not_loopback' })
     }
