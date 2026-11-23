@@ -15,7 +15,6 @@
   "files": [
     "index.js",
     "src/host",
-    "src/client",
     "lib/client.js",
     "cordis.patch.yml",
     "locale/*.json",
