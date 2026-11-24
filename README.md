@@ -4,7 +4,7 @@
 
 One persona asset set for the DeepSeek Harness web client and for every bot subject. Routing walks **subject → private/group channel → target id** and falls back one layer at a time; a disabled layer returns `null` so the caller can apply its own default. Local text only — no network requests, no memory writes.
 
-> Current version **0.5.2**. DSH `>=0.2.2-rc.5 <0.3.0`, Node `>=22.5`. Web client only.
+> Current version **0.5.2**. DSH `>=0.2.2-rc.5 <0.3.0`, Node `>=22.13.0`. Web client only.
 
 ## Install
 
@@ -68,7 +68,7 @@ Uninstalling the plugin does not delete user data. Deleting `$DSH_HOME/persona-h
 ## Development
 
 ```bash
-npm test                      # 107 tests: host / resolver / routes / store / hook / client
+npm test                      # 145 tests: host / resolver / routes / store / hook / client
 npm run check                 # manifest / exports / files / forbidden-pattern scan
 node scripts/i18n-check.mjs   # locale single source: keys, placeholders, generated client block
 node --check lib/client.js    # client bundle syntax gate

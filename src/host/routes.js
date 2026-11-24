@@ -1,5 +1,5 @@
 /**
- * persona-hub 只读 + 配置路由（0.5.0）。
+ * persona-hub 只读 + 配置路由（0.5.2）。
  *
  *   GET  /personas                 资产列表（key/name/avatar/description/chars）
  *   GET  /persona?key=             预览正文

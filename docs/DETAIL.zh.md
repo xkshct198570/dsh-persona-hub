@@ -18,7 +18,7 @@
 dsh plugin --profile <profile> add <dsh-persona-hub.tgz>
 ```
 
-开发可用 `link:<本仓目录>`。需要 DSH `>=0.2.2-rc.5 <0.3.0`、Node `>=22.5`。
+开发可用 `link:<本仓目录>`。需要 DSH `>=0.2.2-rc.5 <0.3.0`、Node `>=22.13.0`。
 
 ## 使用
 

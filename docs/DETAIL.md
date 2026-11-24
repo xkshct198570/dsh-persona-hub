@@ -18,7 +18,7 @@ Search “Persona Routing Hub / 人设路由中枢” in the Plugins market (onc
 dsh plugin --profile <profile> add <dsh-persona-hub.tgz>
 ```
 
-For development use `link:<repository-directory>`. Requires DSH `>=0.2.2-rc.5 <0.3.0`, Node `>=22.5`.
+For development use `link:<repository-directory>`. Requires DSH `>=0.2.2-rc.5 <0.3.0`, Node `>=22.13.0`.
 
 ## Use
 

@@ -27,7 +27,7 @@
     "personas"
   ],
   "engines": {
-    "node": ">=22.5",
+    "node": ">=22.13.0",
     "dsh": ">=0.2.2-rc.5 <0.3.0-0"
   },
   "keywords": [
@@ -57,5 +57,13 @@
   "dependencies": {
     "@deepseek-ai/schemastery": "3.19.0"
   },
-  "author": "大肥鱼"
+  "author": "大肥鱼",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xkshct198570/dsh-persona-hub.git"
+  },
+  "homepage": "https://github.com/xkshct198570/dsh-persona-hub#readme",
+  "bugs": {
+    "url": "https://github.com/xkshct198570/dsh-persona-hub/issues"
+  }
 }

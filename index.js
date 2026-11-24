@@ -37,7 +37,7 @@ export function apply(ctx, config) {
 
   // 对外 Service：B/网关/其他插件只走这一处；C 内部实现可换。
   ctx.provide('personaHub', {
-    version: '0.5.1',
+    version: '0.5.2',
     resolvePersona: resolver,
     explainResolve: (q) => (typeof resolver.explain === 'function' ? resolver.explain(q) : { persona: null, reason: 'resolve_error', layer: 'entry' }),
     getPersona: (key) => readPersona(config, key),
@@ -68,5 +68,24 @@ export function apply(ctx, config) {
 
   const initialHint = applyIdentityHint(ctx, hook.activeKey(), { enabled: isEnabled(config?.dsh?.enabled) })
   initialHintSent = initialHint.sent
+  // 跨插件启动顺序不确定：鲸忆可能晚于本包挂载，首次 hint 会 no_service。
+  // 前 30 秒每秒补试一次（幂等；成功即停），不必等下一次会话 assemble。
+  if (!initialHintSent) {
+    ctx.effect(() => {
+      let attempts = 0
+      const timer = setInterval(() => {
+        if (initialHintSent || attempts >= 30) { clearInterval(timer); return }
+        attempts += 1
+        const retry = applyIdentityHint(ctx, hook.activeKey(), { enabled: isEnabled(config?.dsh?.enabled) })
+        if (retry.sent) {
+          initialHintSent = true
+          clearInterval(timer)
+          log('[persona-hub] identity hint bootstrap retry: sent=true')
+        }
+      }, 1000)
+      if (typeof timer.unref === 'function') timer.unref()
+      return () => clearInterval(timer)
+    }, 'persona-hub: identity hint retry')
+  }
   log(`[persona-hub] armed dsh=${hook.activeKey()} dshEnabled=${isEnabled(config?.dsh?.enabled)} bots=${Object.keys(config?.bots || {}).length} memoryHint=${initialHint.sent}/${initialHint.reason}`)
 }
