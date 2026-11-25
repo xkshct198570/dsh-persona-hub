@@ -47,7 +47,6 @@
     "build:client": "node scripts/build-client.mjs",
     "check:client": "node scripts/build-client.mjs --check",
     "lint:size": "node scripts/lint-size.mjs",
-    "split:client": "node scripts/split-client.mjs",
     "capture:baseline": "node scripts/capture-baseline.mjs",
     "compare:baseline": "node scripts/compare-baseline.mjs"
   },

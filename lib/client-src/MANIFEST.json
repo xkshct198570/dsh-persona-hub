@@ -4,8 +4,8 @@
     "responsibility": "文件头注释 + __ModuleLoader__.load(id) + factory 头 + 常量（React/h/NS/PANEL_ID/TABS）"
   },
   {
-    "file": "10-generated.js",
-    "responsibility": "生成块整片：banner + 内联 dict（zh/en）+ 结束标记（scripts/i18n-check.mjs 生成，勿手改；P5b 改承载形态）"
+    "file": "generated/locale.js",
+    "responsibility": "生成块整片：banner + locale 单行 dict（zh/en）+ 起止标记（scripts/i18n-check.mjs --write 生成，勿手改）"
   },
   {
     "file": "20-normalize.js",

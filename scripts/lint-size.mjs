@@ -28,7 +28,6 @@ const PRODUCED = new Set(['lib/client.js'])
 // 门禁脚本自身不设体量阈值：它们是装配层/构建入口，只随基线列数字。
 const EXEMPT_SCRIPTS = new Set([
   'scripts/build-client.mjs',
-  'scripts/split-client.mjs',
   'scripts/capture-baseline.mjs',
   'scripts/compare-baseline.mjs',
   'scripts/lint-size.mjs',

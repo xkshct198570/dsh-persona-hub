@@ -156,7 +156,7 @@ function main() {
   ]
 
   console.log(`[capture] phase ${phase}（${phaseSource}）· lib/client.js ${original.length} bytes · sha256 ${sha}`)
-  console.log(`[capture] locale 来源 client.js 内联 dict（JSON.parse 生成块文本） · ${langs.join('/')} 各 ${counts[0]} 键`)
+  console.log(`[capture] locale 来源 client.js 生成块 dict（JSON.parse 生成块文本） · ${langs.join('/')} 各 ${counts[0]} 键`)
   if (keepLocale) {
     console.log(`[capture] 保留既有 locale-object.json（phase ${phase} 不得自吸收；--rewrite-locale 才覆盖）`)
   }
