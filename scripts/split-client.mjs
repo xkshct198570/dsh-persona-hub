@@ -22,6 +22,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import * as acorn from 'acorn'
+import { effectiveLines } from './lint-size.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SOURCE = path.join(ROOT, 'lib/client.js')
@@ -188,26 +189,6 @@ if (Buffer.compare(rebuilt, original) !== 0) {
 const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex')
 const rebuiltSha = sha(rebuilt)
 
-/** 有效行口径：非空、非纯注释、非块注释内（本仓脚本只做展示，不参与体量闸）。 */
-function effectiveLines(text) {
-  let n = 0
-  let inBlock = false
-  for (const line of text.split('\n')) {
-    const t = line.trim()
-    if (inBlock) {
-      if (t.includes('*/')) inBlock = false
-      continue
-    }
-    if (!t || t.startsWith('//')) continue
-    if (t.startsWith('/*')) {
-      if (!t.includes('*/')) inBlock = true
-      continue
-    }
-    n += 1
-  }
-  return n
-}
-
 const truncate = (text) => {
   const first = text.split('\n')[0]
   return first.length > 60 ? `${first.slice(0, 60)}…` : first
@@ -220,13 +201,14 @@ console.log(`[split] acorn ${acorn.version} · factory 节点 ${factory.type}（
 console.log('片段 | 行区间 | UTF-16 | 字节 | 行数 | 有效行 | 首行 | 边界')
 for (const f of fragments) {
   const bytes = Buffer.byteLength(f.text, 'utf8')
-  const lines = f.text.split('\n').length
+  // 片段都以 \n 收尾：行数按真实行算，不能用 split('\n').length（会多计末尾空元素）。
+  const lines = (f.text.endsWith('\n') ? f.text.slice(0, -1) : f.text).split('\n').length
   const boundary = f.file === '00-core.js' ? '文件头'
     : f.file === '10-generated.js' ? '生成块整片'
       : f.file === '999-footer.js' ? 'factory 闭合+文件尾'
         : '行首边界（§2 钉死）'
   const flag = lines > 1200 ? ' ⚠子切候选' : ''
-  console.log(`${f.file} | ${f.from}–${f.to} | ${f.start}-${f.end} | ${bytes} | ${lines} | ${effectiveLines(f.text)} | ${JSON.stringify(truncate(f.text))} | ${boundary}${flag}`)
+  console.log(`${f.file} | ${f.from}–${f.to} | ${f.start}-${f.end} | ${bytes} | ${lines} | ${effectiveLines(f.text, f.file, true)} | ${JSON.stringify(truncate(f.text))} | ${boundary}${flag}`)
 }
 console.log(`[split] 重建 ${rebuilt.length} bytes · sha256 ${rebuiltSha}（源 ${sha(original)}）`)
 console.log(`[split] 00-core 头 200 字符：${JSON.stringify(fragments[0].text.slice(0, 200))}`)

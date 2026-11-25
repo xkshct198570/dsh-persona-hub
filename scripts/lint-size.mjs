@@ -16,7 +16,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import * as acorn from 'acorn'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -109,42 +109,51 @@ export function effectiveLines(text, label = '<memory>', fragment = false) {
 }
 
 /**
- * 解析失败时的回退计行：切掉行注释与块注释后再判有无代码。
+ * 片段/解析失败时的回退计行：引号感知的行扫描。
+ * 片段是同一作用域里的文本，常不可独立 parse，但必须准确区分「注释」与「字符串里的 //、/*」，
+ * 否则 locale 字典/URL 字符串会被误当注释而少算行（体量闸即 fail-open）。
  * @param {string[]} lines 按 \n 切开的行
  * @returns {number} 有效行数
  */
 function fallbackLines(lines) {
+  /** 跨行状态：块注释内 / 字符串（' " `）内。模板字符串的 ${} 嵌套不展开（本仓未跨行用）。 */
   let inBlock = false
+  let quote = null
   let count = 0
-  for (const raw of lines) {
-    let line = raw
-    let code = ''
-    while (line.length > 0) {
+  for (const line of lines) {
+    let hasCode = false
+    for (let i = 0; i < line.length; i += 1) {
+      const ch = line[i]
       if (inBlock) {
-        const end = line.indexOf('*/')
-        if (end < 0) {
-          line = ''
-          break
+        if (ch === '*' && line[i + 1] === '/') {
+          inBlock = false
+          i += 1
         }
-        inBlock = false
-        line = line.slice(end + 2)
-      } else {
-        const lineComment = line.indexOf('//')
-        const blockStart = line.indexOf('/*')
-        if (blockStart >= 0 && (lineComment < 0 || blockStart < lineComment)) {
-          code += line.slice(0, blockStart)
-          inBlock = true
-          line = line.slice(blockStart + 2)
-        } else if (lineComment >= 0) {
-          code += line.slice(0, lineComment)
-          line = ''
-        } else {
-          code += line
-          line = ''
-        }
+        continue
       }
+      if (quote) {
+        if (ch === '\\') {
+          i += 1
+        } else if (ch === quote) {
+          quote = null
+        }
+        hasCode = true
+        continue
+      }
+      if (ch === '/' && line[i + 1] === '/') break
+      if (ch === '/' && line[i + 1] === '*') {
+        inBlock = true
+        i += 1
+        continue
+      }
+      if (ch === "'" || ch === '"' || ch === '`') {
+        quote = ch
+        hasCode = true
+        continue
+      }
+      if (ch !== ' ' && ch !== '\t' && ch !== '\r') hasCode = true
     }
-    if (code.trim() !== '') count += 1
+    if (hasCode) count += 1
   }
   return count
 }
@@ -251,32 +260,37 @@ function check(groups) {
   return fails
 }
 
-const args = process.argv.slice(2)
-const known = new Set(['--write', '--check'])
-for (const arg of args) {
-  if (!known.has(arg)) {
-    console.error(`[lint-size] 未知参数 ${arg}；用法：node scripts/lint-size.mjs [--write|--check]`)
-    process.exit(2)
+/** CLI：--write 落基线 / 缺省 --check 对基线判违规；import 时不执行。 */
+function main() {
+  const args = process.argv.slice(2)
+  const known = new Set(['--write', '--check'])
+  for (const arg of args) {
+    if (!known.has(arg)) {
+      console.error(`[lint-size] 未知参数 ${arg}；用法：node scripts/lint-size.mjs [--write|--check]`)
+      process.exit(2)
+    }
   }
-}
-const mode = args.includes('--write') ? 'write' : 'check'
+  const mode = args.includes('--write') ? 'write' : 'check'
 
-const groups = collect()
-report('source', groups.source)
-report('clientSrc', groups.clientSrc)
-report('tests', groups.tests)
-report('scripts', groups.scripts)
+  const groups = collect()
+  report('source', groups.source)
+  report('clientSrc', groups.clientSrc)
+  report('tests', groups.tests)
+  report('scripts', groups.scripts)
 
-if (mode === 'write') {
-  writeBaseline(groups)
-  process.exit(0)
+  if (mode === 'write') {
+    writeBaseline(groups)
+    return
+  }
+
+  const fails = check(groups)
+  if (fails.length > 0) {
+    for (const line of fails) console.error(`[lint-size] FAIL: ${line}`)
+    process.exit(1)
+  }
+  console.log(
+    `[lint-size] ok：source ${groups.source.size} / clientSrc ${groups.clientSrc.size} / tests ${groups.tests.size} / scripts ${groups.scripts.size} 个文件，0 违规`,
+  )
 }
 
-const fails = check(groups)
-if (fails.length > 0) {
-  for (const line of fails) console.error(`[lint-size] FAIL: ${line}`)
-  process.exit(1)
-}
-console.log(
-  `[lint-size] ok：source ${groups.source.size} / clientSrc ${groups.clientSrc.size} / tests ${groups.tests.size} / scripts ${groups.scripts.size} 个文件，0 违规`,
-)
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) main()

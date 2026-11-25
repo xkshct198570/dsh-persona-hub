@@ -15,14 +15,10 @@
  * 依赖方向：复用 capture-baseline.mjs 的纯函数；本文件不写任何快照。
  */
 import { readFileSync, existsSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
-import { fileURLToPath, pathToFileURL } from 'node:url'
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const BASELINE_DIR = join(ROOT, 'scripts/baseline/persona')
-const CLIENT = join(ROOT, 'lib/client.js')
-const PHASES = new Set(['P5a', 'P5b'])
+import { pathToFileURL } from 'node:url'
+import { BASELINE_DIR, CLIENT, PHASES, extractLocaleObject, localeCounts } from './capture-baseline.mjs'
 
 /**
  * 读基线文件原文。
@@ -79,9 +75,6 @@ function firstDiff(a, b, at = '$') {
   }
   return null
 }
-
-/** @param {string} text 文本 @returns {Record<string, number>} 每语言键数 */
-const localeCounts = (text) => Object.fromEntries(Object.keys(text).map((lang) => [lang, Object.keys(text[lang]).length]))
 
 /**
  * 命令行参数解析。
@@ -177,19 +170,10 @@ async function main() {
     fail(`client-sha: ${err?.message || err}`)
   }
 
-  // 2) locale 逐 key 对象等价
+  // 2) locale 逐 key 对象等价（判据唯一实现在 capture-baseline.mjs）
   try {
     const baseline = readBaselineJson('locale-object.json')
-    const src = readFileSync(CLIENT, 'utf8')
-    const start = src.indexOf('// >>> locale:generated')
-    const end = src.indexOf('// <<< locale:generated')
-    if (start < 0 || end < 0 || end < start) throw new Error('找不到 locale 生成块标记')
-    const block = src.slice(start, end)
-    const dictPos = block.indexOf('const dict =')
-    const braceStart = block.indexOf('{', dictPos)
-    const braceEnd = block.lastIndexOf('}')
-    if (dictPos < 0 || braceStart < 0 || braceEnd <= braceStart) throw new Error('locale 生成块 dict 结构异常')
-    const current = JSON.parse(block.slice(braceStart, braceEnd + 1))
+    const current = extractLocaleObject(readFileSync(CLIENT, 'utf8'))
     if (!isDeepStrictEqual(baseline, current)) {
       fail(`locale-object: 深比较不一致（${firstDiff(baseline, current) || '对象结构不一致'}）`)
     } else {
