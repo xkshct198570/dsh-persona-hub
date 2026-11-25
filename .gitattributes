@@ -1,0 +1,3 @@
+# 字节基线闸：产物与源片段禁止任何 EOL 转换/文本归一（P5 sha 对拍依赖逐字节一致）
+lib/client.js -text
+lib/client-src/** -text
