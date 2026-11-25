@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.3 — 2026-11-25（内部重构，零用户可见行为变化）
+
+- 内部重构：client 字节分片（14 片 + MANIFEST）与 `generated/locale.js` 生成块，build/compare/lint-size 门禁固化。
+- 接口、配置项与面板行为不变；测试基线 146（146 pass / 0 fail），client 产物 sha `4ef4f2c0…` 不变，`npm pack` 42 项/93,416 B。
+
 ## 0.5.2 — 2026-11-24（未发布 · R11 性能与终审）
 
 - `loadMeta` 增 mtime+size 缓存：hook 每轮读角色名/描述不再重复解析出厂 meta 与用户 meta；文件改写后按 mtime/size 自动失效，坏 JSON 仍整体忽略回退出厂值。

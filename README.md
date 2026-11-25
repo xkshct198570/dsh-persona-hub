@@ -4,7 +4,14 @@
 
 One persona asset set for the DeepSeek Harness web client and for every bot subject. Routing walks **subject → private/group channel → target id** and falls back one layer at a time; a disabled layer returns `null` so the caller can apply its own default. Local text only — no network requests, no memory writes.
 
-> Current version **0.5.2**. DSH `>=0.2.2-rc.5 <0.3.0`, Node `>=22.13.0`. Web client only.
+> Current version **0.5.3**. DSH `>=0.2.2-rc.5 <0.3.0`, Node `>=22.13.0`. Web client only.
+
+## Why it is useful
+
+- One place decides which persona the web client, QQ private chat and QQ group each use, falling back one layer at a time.
+- Switching a character takes one click and applies immediately; the panel's three tabs show the whole routing tree.
+- Persona bodies are plain local text files — edit and use, no memory writes, no network.
+- The panel and the Python gateway share one config mirror, so you never edit both sides.
 
 ## Install
 
