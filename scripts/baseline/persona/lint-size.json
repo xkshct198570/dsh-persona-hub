@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-25T10:56:08.598Z",
+  "generatedAt": "2026-11-25T11:26:21.789Z",
   "thresholds": {
     "plan": 800,
     "freeze": 1200,
@@ -39,12 +39,11 @@
   },
   "scripts": {
     "scripts/build-client.mjs": 154,
-    "scripts/capture-baseline.mjs": 137,
+    "scripts/capture-baseline.mjs": 122,
     "scripts/check.mjs": 59,
-    "scripts/compare-baseline.mjs": 162,
-    "scripts/i18n-check.mjs": 103,
+    "scripts/compare-baseline.mjs": 149,
+    "scripts/i18n-check.mjs": 94,
     "scripts/import-persona.mjs": 10,
-    "scripts/lint-size.mjs": 203,
-    "scripts/split-client.mjs": 206
+    "scripts/lint-size.mjs": 211
   }
 }
