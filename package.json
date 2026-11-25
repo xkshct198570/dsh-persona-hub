@@ -16,6 +16,8 @@
     "index.js",
     "src/host",
     "lib/client.js",
+    "lib/client-src",
+    "scripts/build-client.mjs",
     "cordis.patch.yml",
     "locale/*.json",
     "docs",
@@ -39,7 +41,14 @@
   ],
   "scripts": {
     "test": "node --test test/*.test.mjs test/client/*.test.mjs",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "pretest": "node scripts/i18n-check.mjs --check 1>&2 && node scripts/build-client.mjs --check 1>&2 && node scripts/lint-size.mjs --check 1>&2 && node scripts/compare-baseline.mjs 1>&2",
+    "prepack": "node scripts/i18n-check.mjs --check 1>&2 && node scripts/build-client.mjs --check 1>&2",
+    "build:client": "node scripts/build-client.mjs",
+    "check:client": "node scripts/build-client.mjs --check",
+    "lint:size": "node scripts/lint-size.mjs",
+    "capture:baseline": "node scripts/capture-baseline.mjs",
+    "compare:baseline": "node scripts/compare-baseline.mjs"
   },
   "dsh": {
     "manifestVersion": 1,
@@ -65,5 +74,8 @@
   "homepage": "https://github.com/xkshct198570/dsh-persona-hub#readme",
   "bugs": {
     "url": "https://github.com/xkshct198570/dsh-persona-hub/issues"
+  },
+  "devDependencies": {
+    "acorn": "8.14.0"
   }
 }

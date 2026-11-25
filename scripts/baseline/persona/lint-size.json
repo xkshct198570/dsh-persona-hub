@@ -1,0 +1,49 @@
+{
+  "generatedAt": "2026-11-25T11:26:21.789Z",
+  "thresholds": {
+    "plan": 800,
+    "freeze": 1200,
+    "split": 2000
+  },
+  "source": {
+    "src/host/config-mirror.js": 34,
+    "src/host/config-values.js": 41,
+    "src/host/config.js": 30,
+    "src/host/hook.js": 71,
+    "src/host/http-kit.js": 85,
+    "src/host/persona-admin.js": 149,
+    "src/host/persona-store.js": 205,
+    "src/host/resolver.js": 55,
+    "src/host/role-map.js": 10,
+    "src/host/routes.js": 371
+  },
+  "tests": {
+    "test/client/client.test.mjs": 184,
+    "test/client/page-scroll.test.mjs": 63,
+    "test/client/render.test.mjs": 248,
+    "test/codepoint.test.mjs": 84,
+    "test/config.test.mjs": 49,
+    "test/hook-bootstrap.test.mjs": 134,
+    "test/hook.test.mjs": 120,
+    "test/http-gate.test.mjs": 182,
+    "test/identity.test.mjs": 92,
+    "test/mirror.test.mjs": 25,
+    "test/persona-admin.test.mjs": 72,
+    "test/resolver.test.mjs": 220,
+    "test/routes.test.mjs": 309,
+    "test/security-r10.test.mjs": 84,
+    "test/smoke.test.mjs": 46,
+    "test/store.test.mjs": 257,
+    "test/watcher.test.mjs": 134,
+    "test/wiring.test.mjs": 130
+  },
+  "scripts": {
+    "scripts/build-client.mjs": 154,
+    "scripts/capture-baseline.mjs": 122,
+    "scripts/check.mjs": 59,
+    "scripts/compare-baseline.mjs": 149,
+    "scripts/i18n-check.mjs": 94,
+    "scripts/import-persona.mjs": 10,
+    "scripts/lint-size.mjs": 211
+  }
+}

@@ -77,14 +77,16 @@ test('locale 单一真源：zh/en 键集一致、无空值、占位符一致', (
   }
 })
 
-test('client 标记块与 locale JSON 逐字一致；不再内联旧字典', () => {
-  const START = '// >>> locale:generated（由 scripts/i18n-check.mjs --write 生成，勿手改）'
-  const END = '// <<< locale:generated'
-  const json = JSON.stringify(dicts, null, 2).replace(/\n/g, '\n    ')
-  const expected = `${START}\n    const dict = ${json}\n    ${END}`
-  assert.ok(CLIENT.includes(START), '缺少生成块起始标记')
-  assert.ok(CLIENT.includes(END), '缺少生成块结束标记')
-  assert.ok(CLIENT.includes(expected), '标记块与 locale JSON 不一致；运行 node scripts/i18n-check.mjs --write')
+test('生成块与 locale JSON 逐字一致（单行 dict），client 由 MANIFEST 拼入；不再内联旧字典', () => {
+  // P5b 契约变更：生成块从 client.js 多行内联块改为 lib/client-src/generated/locale.js 单行块，
+  // 判据改为「生成块 == JSON 压缩结果」+「client.js 含同一生成块」；旧的 Pretty-print 断言按新形态失效。
+  const [START, END] = ['// >>> locale:generated（由 scripts/i18n-check.mjs --write 生成，勿手改）', '// <<< locale:generated']
+  const generated = fs.readFileSync(path.join(ROOT, 'lib/client-src/generated/locale.js'), 'utf8')
+  const expected = `${START}\n    const dict = ${JSON.stringify(dicts)}\n    ${END}`
+  assert.ok(generated.includes(START), '缺少生成块起始标记')
+  assert.ok(generated.includes(expected), '生成块与 locale JSON 不一致；运行 node scripts/i18n-check.mjs --write')
+  assert.match(generated, /^\s*const dict = \{.*\}\s*$/m, 'dict 应为单行块')
+  assert.ok(CLIENT.includes(expected), 'lib/client.js 未按 MANIFEST 拼入生成块（先 build-client）')
   assert.doesNotMatch(CLIENT, /^\s*const (zh|en) = \{/m, '旧的 zh/en 内联字典仍然存在')
 })
 
