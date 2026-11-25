@@ -6,7 +6,7 @@
  * 未收录项**显式打印 skipped 与原因**（铁律 22：禁止静默跳过）：
  * - exports：人设 client 无顶层 ESM 导出面，门面导出面判据在 P6 固化；
  * - routes：P5d 审计阶段用 test/routes.test.mjs + 契约用例判，本闸不做 HTTP 快照；
- * - test-counts：由 `npm test` 三元组自身判（145/145/0），本闸不重复采集。
+ * - test-counts：由 `npm test` 三元组当前值自身判（不在此硬编码计数），本闸不重复采集。
  *
  * 用法：node scripts/compare-baseline.mjs [--phase P5a|P5b] [--no-tests]
  * - phase 缺省读 scripts/baseline/persona/current.json，缺失时按 P5a。
@@ -189,8 +189,8 @@ async function main() {
   console.log(`[compare] routes: skipped (P5d routes 审计阶段用契约用例判，本闸不做 HTTP 快照)`)
   console.log(options.noTests
     ? '[compare] test-counts: skipped (--no-tests)'
-    : '[compare] test-counts: skipped (由 npm test 三元组 145/145/0 自身判，本闸不重复采集)')
-  console.log('[compare] render-tree: skipped (无渲染树基线源；页签冒烟在 P5c 用 test/client/*.test.mjs)')
+    : '[compare] test-counts: skipped (由 npm test 三元组当前值自身判，本闸不重复采集)')
+  console.log('[compare] render-tree: skipped (无渲染树基线源；页签冒烟由 test/client/{render,tabs}.test.mjs 覆盖)')
 
   if (failures.length > 0) {
     console.log(`[compare] FAIL: ${failures.length} 项不一致`)

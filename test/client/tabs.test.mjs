@@ -12,7 +12,7 @@ import assert from 'node:assert/strict'
 import { createHarness } from './harness.mjs'
 
 const TABS = [
-  { tab: 'personas', label: '角色与资产', marker: '大肥鱼' },
+  { tab: 'personas', label: '角色与资产', marker: '出厂（只读）' }, // 页签专属：bots 页也会出现角色名，不能用「大肥鱼」
   { tab: 'bots', label: '主体与通道', marker: '1127704268' },
   { tab: 'debug', label: '调试与设置', marker: '路由调试' },
 ]
@@ -31,6 +31,9 @@ test('三页签渲染冒烟：选中态唯一 + 页签专属内容 + 互切不�
         if (other.tab === tab) continue
         h.findTab(h.tree(), other.label).props.onClick()
         await h.settle()
+        const nowSelected = h.buttons(h.tree()).filter((button) => button.props['aria-selected'] === 'true')
+        assert.equal(nowSelected.map((button) => button.children.map((child) => child.text).join('')).join(','),
+          other.label, `${tab}→${other.tab}: 切页签未生效`)
         assert.ok(h.textOf(h.tree()).includes(other.marker), `${tab}→${other.tab}: 切页签后内容缺失`)
       }
     } finally {
