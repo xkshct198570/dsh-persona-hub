@@ -16,6 +16,8 @@
     "index.js",
     "src/host",
     "lib/client.js",
+    "lib/client-src",
+    "scripts/build-client.mjs",
     "cordis.patch.yml",
     "locale/*.json",
     "docs",

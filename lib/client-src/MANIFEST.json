@@ -1,0 +1,58 @@
+[
+  {
+    "file": "00-core.js",
+    "responsibility": "文件头注释 + __ModuleLoader__.load(id) + factory 头 + 常量（React/h/NS/PANEL_ID/TABS）"
+  },
+  {
+    "file": "10-generated.js",
+    "responsibility": "生成块整片：banner + 内联 dict（zh/en）+ 结束标记（scripts/i18n-check.mjs 生成，勿手改；P5b 改承载形态）"
+  },
+  {
+    "file": "20-normalize.js",
+    "responsibility": "数据小件 banner + 归一/校验 helper + test:pure 结束标记"
+  },
+  {
+    "file": "30-ui-kit.js",
+    "responsibility": "UI 原子：Btn/Switch/Select/TextInput/Card/Row/Hint/Field"
+  },
+  {
+    "file": "40-import-editor.js",
+    "responsibility": "导入表单编辑器"
+  },
+  {
+    "file": "60-bots-01.js",
+    "responsibility": "ChannelEditor + BotCard"
+  },
+  {
+    "file": "30-ui-kit-02.js",
+    "responsibility": "TabBar + SettingRow"
+  },
+  {
+    "file": "80-settings.js",
+    "responsibility": "SettingsCard"
+  },
+  {
+    "file": "45-panel-01.js",
+    "responsibility": "滚动条 helper + Panel 头（state/callback/handler）+ return h(...) 头"
+  },
+  {
+    "file": "50-personas.js",
+    "responsibility": "角色页返回片段"
+  },
+  {
+    "file": "60-bots-02.js",
+    "responsibility": "主体页返回片段"
+  },
+  {
+    "file": "70-debug.js",
+    "responsibility": "调试页返回片段（含设置卡挂载）+ Panel 闭合 }"
+  },
+  {
+    "file": "99-css.js",
+    "responsibility": "样式分节 banner + 整片 CSS 对象（整片不拆）"
+  },
+  {
+    "file": "999-footer.js",
+    "responsibility": "return { … } 收尾 + slots 注册 + factory 闭合 } + 文件末 })"
+  }
+]
