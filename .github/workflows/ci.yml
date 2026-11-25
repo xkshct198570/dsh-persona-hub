@@ -23,5 +23,5 @@ jobs:
         run: node scripts/check.mjs
       - name: i18n single source
         run: node scripts/i18n-check.mjs
-      - name: Unit tests
-        run: node --test test/*.test.mjs test/client/*.test.mjs
+      - name: Tests（npm test：pretest 生成物/体量/基线 + posttest 计数闸）
+        run: npm test

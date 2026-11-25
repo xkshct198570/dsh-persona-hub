@@ -40,7 +40,7 @@
     "roleplay"
   ],
   "scripts": {
-    "test": "node --test test/*.test.mjs test/client/*.test.mjs",
+    "test": "node scripts/run-tests.mjs",
     "check": "node scripts/check.mjs",
     "pretest": "node scripts/i18n-check.mjs --check 1>&2 && node scripts/build-client.mjs --check 1>&2 && node scripts/lint-size.mjs --check 1>&2 && node scripts/compare-baseline.mjs 1>&2",
     "prepack": "node scripts/i18n-check.mjs --check 1>&2 && node scripts/build-client.mjs --check 1>&2",
@@ -48,7 +48,8 @@
     "check:client": "node scripts/build-client.mjs --check",
     "lint:size": "node scripts/lint-size.mjs",
     "capture:baseline": "node scripts/capture-baseline.mjs",
-    "compare:baseline": "node scripts/compare-baseline.mjs"
+    "compare:baseline": "node scripts/compare-baseline.mjs",
+    "posttest": "node scripts/check-test-counts.mjs"
   },
   "dsh": {
     "manifestVersion": 1,
