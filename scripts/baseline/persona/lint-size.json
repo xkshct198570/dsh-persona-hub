@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-25T11:26:21.789Z",
+  "generatedAt": "2026-11-27T18:41:43.856Z",
   "thresholds": {
     "plan": 800,
     "freeze": 1200,
@@ -13,14 +13,17 @@
     "src/host/http-kit.js": 85,
     "src/host/persona-admin.js": 149,
     "src/host/persona-store.js": 205,
+    "src/host/remote-view.js": 42,
     "src/host/resolver.js": 55,
     "src/host/role-map.js": 10,
-    "src/host/routes.js": 371
+    "src/host/routes.js": 382
   },
   "tests": {
     "test/client/client.test.mjs": 184,
+    "test/client/harness.mjs": 170,
     "test/client/page-scroll.test.mjs": 63,
-    "test/client/render.test.mjs": 248,
+    "test/client/render.test.mjs": 80,
+    "test/client/tabs.test.mjs": 32,
     "test/codepoint.test.mjs": 84,
     "test/config.test.mjs": 49,
     "test/hook-bootstrap.test.mjs": 134,
@@ -29,6 +32,7 @@
     "test/identity.test.mjs": 92,
     "test/mirror.test.mjs": 25,
     "test/persona-admin.test.mjs": 72,
+    "test/remote-read.test.mjs": 134,
     "test/resolver.test.mjs": 220,
     "test/routes.test.mjs": 309,
     "test/security-r10.test.mjs": 84,
@@ -40,10 +44,12 @@
   "scripts": {
     "scripts/build-client.mjs": 154,
     "scripts/capture-baseline.mjs": 122,
+    "scripts/check-test-counts.mjs": 43,
     "scripts/check.mjs": 59,
     "scripts/compare-baseline.mjs": 149,
     "scripts/i18n-check.mjs": 94,
     "scripts/import-persona.mjs": 10,
-    "scripts/lint-size.mjs": 211
+    "scripts/lint-size.mjs": 211,
+    "scripts/run-tests.mjs": 54
   }
 }

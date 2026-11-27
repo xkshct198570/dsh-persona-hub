@@ -9,15 +9,18 @@
  *   GET  /resolve                  调试：source/bot_id/chat_type/target_id → persona/reason/layer
  *   POST /reload                   清缓存（fs.watch=false 时的手工重读）
  *
- * 默认只回环（panel.allowRemote=true 才放行读请求）。写请求（POST/DELETE）无论 allowRemote
- * 如何都要求回环地址 + 本机 Host + 本机 Origin + POST application/json（checkWriteGate）。
- * 写盘异常一律转 JSON，不静默失败。
+ * 默认只回环（panel.allowRemote=true 才放行读请求）。allowRemote 放开后非回环仍是收口读面：
+ * `GET /config`（含主体绑定目标号）与 `GET /persona`（人设全文）→ 403 read_only_remote；
+ * `GET /personas` 200 但走 remote-view 脱敏（无目标号、无绝对路径）；`GET /resolve` 不含正文。
+ * 写请求（POST/DELETE）无论 allowRemote 如何都要求回环地址 + 本机 Host + 本机 Origin +
+ * POST application/json（checkWriteGate）。写盘异常一律转 JSON，不静默失败。
  */
 import { checkWriteGate, isAllowedHost, isAllowedOrigin, isLoopback, readJson, sendJson } from './http-kit.js'
 import { dirname } from 'node:path'
 import { listPersonas, readPersona, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './persona-store.js'
 import { importPersona, deletePersona, isUserPersona, checkDirWritable, writesShippedDir } from './persona-admin.js'
 import { writeConfigMirror } from './config-mirror.js'
+import { remotePersonasPayload } from './remote-view.js'
 import { identityForPersona } from './role-map.js'
 import { bool, mergePreservingVolatile, value, isEnabled } from './config-values.js'
 
@@ -202,6 +205,7 @@ export function createRoutes({ config, hook, resolver, ctx, assetsWatcher }) {
     if (!bool(config?.panel?.allowRemote, false) && !isLoopback(req.socket?.remoteAddress)) {
       return sendJson(res, 403, { ok: false, error: 'not_loopback' })
     }
+    const remote = !isLoopback(req.socket?.remoteAddress)
     let path = ''
     let url
     try {
@@ -210,6 +214,13 @@ export function createRoutes({ config, hook, resolver, ctx, assetsWatcher }) {
     } catch {
       url = null
       path = ''
+    }
+
+    // 远端读面收口：allowRemote 只放开"角色列表"这一层；配置（主体绑定目标号）与人设正文
+    // 属于本机面板能力，远端一律 403。回环不受影响。
+    if (remote && req.method === 'GET' && (path === `${PREFIX}/config` || path === `${PREFIX}/persona`)) {
+      log(`[persona-hub] remote read denied: read_only_remote ${path}`)
+      return sendJson(res, 403, { ok: false, error: 'read_only_remote' })
     }
 
     // 写闸（§4.5）：所有 POST/DELETE 在任何业务动作之前统一校验——回环地址、Host 本机、
@@ -223,15 +234,20 @@ export function createRoutes({ config, hook, resolver, ctx, assetsWatcher }) {
     }
 
     if (path === `${PREFIX}/personas` && req.method === 'GET') {
-      return sendJson(res, 200, {
-        ok: true,
-        items: listPersonas(config).map((it) => ({ ...it, deletable: isUserPersona(config, it.key) })),
-        dsh: {
-          enabled: isEnabled(config?.dsh?.enabled),
-          defaultPersona: String(config?.dsh?.defaultPersona || ''),
-        },
-        assets: currentAssets(),
-      })
+      const items = listPersonas(config).map((it) => ({ ...it, deletable: isUserPersona(config, it.key) }))
+      const dsh = {
+        enabled: isEnabled(config?.dsh?.enabled),
+        defaultPersona: String(config?.dsh?.defaultPersona || ''),
+      }
+      if (remote) {
+        return sendJson(res, 200, remotePersonasPayload({
+          bots: config?.bots || {},
+          items,
+          assets: currentAssets(),
+          dsh,
+        }))
+      }
+      return sendJson(res, 200, { ok: true, items, dsh, assets: currentAssets() })
     }
 
     // 导入：上传纯文本（浏览器读成 string 后 JSON 提交）
@@ -362,7 +378,8 @@ export function createRoutes({ config, hook, resolver, ctx, assetsWatcher }) {
         ? resolver.explain(q)
         : { persona: resolver(q), reason: 'ok', layer: '' }
       const persona = out?.persona || null
-      const includeText = url.searchParams.get('include_text') === '1'
+      // /persona 已对远端 403；resolve 的 include_text 也必须同样收口，否则远端能从调试口读到正文。
+      const includeText = !remote && url.searchParams.get('include_text') === '1'
       return sendJson(res, 200, {
         ok: true,
         persona: !persona ? null : includeText ? persona : {
