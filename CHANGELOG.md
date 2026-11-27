@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.4 — 2026-11-28（远端读面收口 + 保存回读语义）
+
+- **P1 远端读面收口**：`panel.allowRemote=true` 且请求非回环时，`GET /config`（含主体绑定目标号）与 `GET /persona`（人设正文）→ **403 `read_only_remote`**；`GET /personas` 仍 200 但**脱敏**为 `key/name/origin/bound` 四字段（无目标号、无绝对路径、无头像/描述/字数）；`GET /resolve` 保留结构，`include_text=1` 对远端失效（防绕过 `/persona` 403）。回环行为不变；`allowRemote=false` 的非回环仍是 `403 not_loopback`。脱敏判据单一实现 `src/host/remote-view.js`。
+- **P2 保存回读语义**：`POST /config` 写盘成功后回读 `config.json` 并校验 `dsh`/`bots`；回读失败或字段不一致 → 仍 `ok:true`，另带 `readBackFailed:true` + 短码（`read_failed`/`parse_failed`/`mismatch_dsh`/`mismatch_bots`），面板提示「已保存·回读失败，重启后以文件为准」；只有写盘失败才 501 `ok:false`（不再把成功报成失败）。回读校验 `verifyConfigMirror` 集中在 `src/host/config-mirror.js`。
+- 测试 **159（159 pass / 0 fail）**：新增 `test/remote-read.test.mjs` 6 例（非回环 403/脱敏/`include_text` 收口/回环不变/`allowRemote=false` 回退）、`test/config-save-readback.test.mjs` 5 例（写盘失败 501 且不落盘 / 回读抛错仍 ok:true 反证文件已落 / 字段不一致仍 ok:true / 一致不带字段 / 五种回读判据）、渲染 2 例（`readBackFailed` 文案与真失败反向）；既有 146 断言未改。
+
 ## 0.5.3 — 2026-11-25（内部重构，零用户可见行为变化）
 
 - 内部重构：client 字节分片（14 片 + MANIFEST）与 `generated/locale.js` 生成块，build/compare/lint-size 门禁固化。

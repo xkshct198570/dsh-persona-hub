@@ -9,6 +9,8 @@ One persona asset set serves the DeepSeek Harness web client and each bot subjec
 - **Cross-process mirror** — atomically writes `$DSH_HOME/persona-hub/config.json` for a Python gateway to read directly; the web host being offline does not affect the gateway.
 - **Identity hint** — switching the web persona sends a role hint to the installed memory hub and silently skips when that plugin is not installed.
 - **Local only** — reads local text files, makes no network request, and writes no memory rows.
+- **Narrow remote read surface** — with `panel.allowRemote=true`, remote clients see only a sanitized persona list (key/name/origin/bound); `GET /config` and `GET /persona` return 403 `read_only_remote`, and `/resolve` carries no body text. Loopback is unchanged.
+- **Save read-back** — after a save, `config.json` is read back and `dsh`/`bots` are verified; a failed read-back still counts as saved and returns a short `readBackFailed` code, which the panel renders as “saved, read-back failed”. Only a write failure is reported as `ok:false`.
 
 ## Install
 
@@ -38,4 +40,4 @@ The memory hub is optional: every `whaleMemory` call is guarded, so this plugin 
 
 ## Privacy and limits
 
-Reads local files only: no network, no memory writes, no QQ message takeover. Persona bodies are capped at 200,000 characters; keys are `[a-z][a-z0-9_-]{0,31}`. The panel API is loopback-only by default; confirm the network boundary before enabling remote access. The open-source package ships one persona (`bigfish`); other personas are user assets.
+Reads local files only: no network, no memory writes, no QQ message takeover. Persona bodies are capped at 200,000 characters; keys are `[a-z][a-z0-9_-]{0,31}`. The panel API is loopback-only by default; confirm the network boundary before enabling remote access: remote only exposes the sanitized persona list, never config or persona bodies. The open-source package ships one persona (`bigfish`); other personas are user assets.
