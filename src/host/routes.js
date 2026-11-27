@@ -19,7 +19,7 @@ import { checkWriteGate, isAllowedHost, isAllowedOrigin, isLoopback, readJson, s
 import { dirname } from 'node:path'
 import { listPersonas, readPersona, resolvePromptsDir, resolveMetaPath, SHIPPED_PROMPTS_DIR } from './persona-store.js'
 import { importPersona, deletePersona, isUserPersona, checkDirWritable, writesShippedDir } from './persona-admin.js'
-import { writeConfigMirror } from './config-mirror.js'
+import { verifyConfigMirror, writeConfigMirror } from './config-mirror.js'
 import { remotePersonasPayload } from './remote-view.js'
 import { identityForPersona } from './role-map.js'
 import { bool, mergePreservingVolatile, value, isEnabled } from './config-values.js'
@@ -92,10 +92,12 @@ export function applyIdentityHint(ctx, key, { enabled = true, log: logFn = log }
 }
 
 /**
- * @param {{ config: any, hook: any, resolver: Function, ctx: any, assetsWatcher?: any }} deps
+ * @param {{ config: any, hook: any, resolver: Function, ctx: any, assetsWatcher?: any,
+ *   verifyReadBack?: (config: any) => {ok: true} | {ok: false, reason: string} }} deps
  *   assetsWatcher：可重入资产 watcher（createPersonaWatcher）；commitConfig 后按当前 assets.dir 重挂。
+ *   verifyReadBack：保存回读校验（缺省 verifyConfigMirror）；测试可注入抛错/不一致桩。
  */
-export function createRoutes({ config, hook, resolver, ctx, assetsWatcher }) {
+export function createRoutes({ config, hook, resolver, ctx, assetsWatcher, verifyReadBack }) {
   /** 保存 + 运行时对象就地更新 + 写跨进程镜像；镜像失败不否定已保存的配置。 */
   async function commitConfig(next) {
     const editor = ctx?.get?.('configEditor')
@@ -128,12 +130,26 @@ export function createRoutes({ config, hook, resolver, ctx, assetsWatcher }) {
       mirrorSynced = false
       log(`[persona-hub] config mirror failed: ${err?.message || 'error'}`)
     }
+    // P2：写盘成功≠回读一致。回读失败只标记 readBackFailed（配置确实已落盘），
+    // 绝不把成功报成失败；只有上面/editor 的写盘失败才 ok:false。
+    let readBack = { ok: true }
+    try {
+      readBack = typeof verifyReadBack === 'function' ? verifyReadBack(config) : verifyConfigMirror(config)
+    } catch (err) {
+      readBack = { ok: false, reason: 'read_failed' }
+      log(`[persona-hub] config read-back threw: ${err?.message || 'error'}`)
+    }
+    if (readBack?.ok !== true) log(`[persona-hub] config read-back failed: ${String(readBack?.reason || 'read_failed')}`)
+
     hook?.refresh?.()
     // assets.dir / assets.watch 可能刚变更：按当前配置重挂 watcher（旧目录句柄先卸掉）。
     try {
       assetsWatcher?.reload?.()
     } catch (err) {
       log(`[persona-hub] assets watcher reattach failed: ${err?.message || 'error'}`)
+    }
+    if (readBack?.ok !== true) {
+      return { ok: true, mirrorSynced, readBackFailed: true, readBackReason: String(readBack?.reason || 'read_failed') }
     }
     return { ok: true, mirrorSynced }
   }
@@ -341,7 +357,12 @@ export function createRoutes({ config, hook, resolver, ctx, assetsWatcher }) {
       if (!saved.ok) return sendJson(res, 501, saved)
       const hint = applyIdentityHint(ctx, dsh.defaultPersona, { enabled: dsh.enabled })
       return sendJson(res, 200, {
-        ok: true, memoryHinted: hint.sent, memoryHint: hint, mirrorSynced: saved.mirrorSynced,
+        ok: true,
+        memoryHinted: hint.sent,
+        memoryHint: hint,
+        mirrorSynced: saved.mirrorSynced,
+        // 写盘成功但回读不一致：ok 仍为 true，另带短码，面板据此提示「已保存·回读失败」。
+        ...(saved.readBackFailed ? { readBackFailed: true, readBackReason: saved.readBackReason } : {}),
       })
     }
 

@@ -95,3 +95,41 @@ test('面板空态：资产与主体都为空 + 资产目录指到出厂目录�
     assert.ok(text.includes('暂无绑定，按默认角色处理。') === false, '无主体时不应出现通道绑定空态')
   } finally { h.dispose() }
 })
+
+test('面板渲染：保存回读失败显示「已保存·回读失败」，不复用「保存失败」', async () => {
+  const h = createHarness()
+  try {
+    await h.settle()
+    // 设置卡在「调试与设置」页签，allowRemote 开关在那里。
+    h.findTab(h.tree(), '调试与设置').props.onClick()
+    await h.settle()
+    h.state.postResult = {
+      ok: true, memoryHinted: true, mirrorSynced: true, readBackFailed: true, readBackReason: 'read_failed',
+    }
+    // 制造未保存修改（保存按钮 !dirty 时禁用）。
+    h.buttons(h.tree()).find((b) => b.props['aria-label'] === '允许远程访问').props.onClick()
+    await h.settle()
+    h.findByText(h.tree(), '保存').props.onClick()
+    await h.settle()
+    const text = h.textOf(h.tree())
+    assert.ok(text.includes('已保存·回读失败，重启后以文件为准'), '回读失败提示缺失')
+    assert.equal(text.includes('保存失败'), false, '回读失败不得复用「保存失败」文案')
+  } finally { h.dispose() }
+})
+
+test('面板渲染：写盘失败仍显示保存失败（反向用例）', async () => {
+  const h = createHarness()
+  try {
+    await h.settle()
+    h.findTab(h.tree(), '调试与设置').props.onClick()
+    await h.settle()
+    h.state.failPost = true
+    h.buttons(h.tree()).find((b) => b.props['aria-label'] === '允许远程访问').props.onClick()
+    await h.settle()
+    h.findByText(h.tree(), '保存').props.onClick()
+    await h.settle()
+    const text = h.textOf(h.tree())
+    assert.match(text, /保存失败：/, '真失败必须显示保存失败')
+    assert.equal(text.includes('已保存·回读失败'), false, '真失败不得显示回读失败提示')
+  } finally { h.dispose() }
+})

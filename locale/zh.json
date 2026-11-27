@@ -115,6 +115,7 @@
   "page.reloadNeeded": "已保存。assets 组（目录/监听）需重挂插件后生效。",
   "page.reloaded": "已重新读取人设资产。",
   "page.saved": "已保存",
+  "page.savedReadBackFailed": "已保存·回读失败，重启后以文件为准。",
   "page.tabBots": "主体与通道",
   "page.tabDebug": "调试与设置",
   "page.tabPersonas": "角色与资产",

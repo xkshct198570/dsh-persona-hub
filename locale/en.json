@@ -115,6 +115,7 @@
   "page.reloadNeeded": "Saved. The assets group (directory/watch) takes effect after remounting the plugin.",
   "page.reloaded": "Persona assets re-read.",
   "page.saved": "Saved",
+  "page.savedReadBackFailed": "Saved · read-back failed; after a restart the file is authoritative.",
   "page.tabBots": "Bots & channels",
   "page.tabDebug": "Debug & settings",
   "page.tabPersonas": "Personas & assets",

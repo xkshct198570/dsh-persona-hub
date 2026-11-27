@@ -5,7 +5,7 @@
  * 写法：同目录 tmp + fsync + rename（rename 原子替换），权限 600、目录 700；
  * 读方永远不会看到半截 JSON。
  */
-import { closeSync, fsyncSync, mkdirSync, openSync, renameSync, writeSync } from 'node:fs'
+import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, writeSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { dshHome } from './persona-store.js'
 
@@ -47,4 +47,56 @@ export function writeConfigMirror(config, paths) {
 
 function safeClone(value) {
   try { return structuredClone(value) } catch { return JSON.parse(JSON.stringify(value)) }
+}
+
+/**
+ * 读回镜像配置（P2 保存回读）。写入成功不等于读得到，调用方据此判定是否随响应标记。
+ *
+ * @param {string} [path] 镜像路径（缺省 `$DSH_HOME/persona-hub/config.json`；测试可显式传）
+ * @returns {any} 解析后的镜像对象
+ */
+export function readConfigMirror(path = mirrorPath()) {
+  return JSON.parse(readFileSync(path, 'utf8'))
+}
+
+/** 稳定序列化（对象键排序），用于 bots 结构等价比较，不受键顺序影响。 */
+function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`
+  if (value && typeof value === 'object') {
+    const keys = Object.keys(value).sort()
+    return `{${keys.map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`
+  }
+  return JSON.stringify(value === undefined ? null : value)
+}
+
+/**
+ * 回读校验：写盘成功后确认 `config.json` 的 dsh/bots 关键字段与运行时配置一致。
+ *
+ * 只回短码原因（不含正文/路径）；任何失败都**不**否定已保存的配置——调用方按
+ * `readBackFailed` 提示，只有写盘失败才报 ok:false。
+ *
+ * @param {any} config 运行时配置（已就地更新）
+ * @param {string} [path] 镜像路径（缺省真实镜像；测试可显式传）
+ * @returns {{ok:true} | {ok:false, reason:'read_failed'|'parse_failed'|'mismatch_dsh'|'mismatch_bots'}}
+ */
+export function verifyConfigMirror(config, path = mirrorPath()) {
+  let body
+  try {
+    body = readConfigMirror(path)
+  } catch (err) {
+    return { ok: false, reason: err instanceof SyntaxError ? 'parse_failed' : 'read_failed' }
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return { ok: false, reason: 'parse_failed' }
+
+  const expectedDsh = {
+    enabled: config?.dsh?.enabled === true,
+    defaultPersona: String(config?.dsh?.defaultPersona || ''),
+  }
+  const gotDsh = {
+    enabled: body?.dsh?.enabled === true,
+    defaultPersona: String(body?.dsh?.defaultPersona || ''),
+  }
+  if (stableJson(gotDsh) !== stableJson(expectedDsh)) return { ok: false, reason: 'mismatch_dsh' }
+  if (stableJson(body?.bots) !== stableJson(config?.bots)) return { ok: false, reason: 'mismatch_bots' }
+  return { ok: true }
 }

@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-27T18:41:43.856Z",
+  "generatedAt": "2026-11-27T18:44:30.190Z",
   "thresholds": {
     "plan": 800,
     "freeze": 1200,
     "split": 2000
   },
   "source": {
-    "src/host/config-mirror.js": 34,
+    "src/host/config-mirror.js": 65,
     "src/host/config-values.js": 41,
     "src/host/config.js": 30,
     "src/host/hook.js": 71,
@@ -16,15 +16,16 @@
     "src/host/remote-view.js": 42,
     "src/host/resolver.js": 55,
     "src/host/role-map.js": 10,
-    "src/host/routes.js": 382
+    "src/host/routes.js": 397
   },
   "tests": {
     "test/client/client.test.mjs": 184,
-    "test/client/harness.mjs": 170,
+    "test/client/harness.mjs": 173,
     "test/client/page-scroll.test.mjs": 63,
-    "test/client/render.test.mjs": 80,
+    "test/client/render.test.mjs": 114,
     "test/client/tabs.test.mjs": 32,
     "test/codepoint.test.mjs": 84,
+    "test/config-save-readback.test.mjs": 151,
     "test/config.test.mjs": 49,
     "test/hook-bootstrap.test.mjs": 134,
     "test/hook.test.mjs": 120,

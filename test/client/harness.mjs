@@ -65,6 +65,9 @@ function createHarness() {
 
   const state = {
     failConfig: false,
+    // POST /config 的响应覆盖：保存回读用例改 postResult / failPost，其余 POST（如 /reload）走默认成功。
+    postResult: null,
+    failPost: false,
     posts: [],
     // 资产列表夹具；空态测试把它清空。
     personas: [
@@ -84,7 +87,8 @@ function createHarness() {
   globalThis.fetch = async (url, opts = {}) => {
     if ((opts.method || 'GET') === 'POST') {
       state.posts.push({ url, body: JSON.parse(opts.body || '{}') })
-      return json(200, { ok: true, memoryHinted: true, mirrorSynced: true })
+      if (state.failPost) return json(501, { ok: false, error: 'config_save_failed' })
+      return json(200, state.postResult || { ok: true, memoryHinted: true, mirrorSynced: true })
     }
     if (url === '/persona-hub/api/personas') {
       return json(200, { ok: true, items: state.personas, assets: state.config.assets })
